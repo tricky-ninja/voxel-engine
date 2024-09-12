@@ -2,14 +2,17 @@
 #include "Logger.h"
 #include "random"
 #include "gameData.h"
+#include <algorithm>
+
+#define NUM_CHUNK 30
 
 struct GameContext
 {
-	Chunk chunk;
+	Chunk chunks[NUM_CHUNK * NUM_CHUNK];
 	Camera cam;
 	Shader mainShader;
 	GLFWwindow* window;
-	Mesh chunkMesh;
+	Mesh chunkMesh[NUM_CHUNK * NUM_CHUNK];
 	bool renderWrieframe = false;
 };
 
@@ -52,32 +55,56 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 
 void init(GLFWwindow* window)
 {
+	srand(20);
 	context.cam;
 	context.cam.pos = { 1.0f, 64.0f, 5.0f };
 	context.cam.up = { 0,1,0 };
 	context.cam.turn(1200, -400);
 	context.cam.updateVectors();
 
-	for (int x = 0; x < 64; x++)
+	unsigned randVal = rand() % 100;
+	unsigned randVal2 = rand() % 100;
+
+	float totalTime = 0;
+	for (int i = 0; i < NUM_CHUNK; i++)
 	{
-		for (int z = 0; z < 64; z++)
+		for (int j = 0; j < NUM_CHUNK; j++)
 		{
-			unsigned height = abs((sin(x / 16.0f) * 10.0f + sin(z / 16.0f) * 10.0f)    // Large rolling hills
-				+ (sin(x / 8.0f) * 5.0f * cos(z / 8.0f) * 5.0f)       // Smaller details
-				+ (sin(x / 4.0f) * 2.0f * cos(z / 4.0f) * 2.0f));      // Fine noise-like bumps
-			height += 20.0f;
-			for (int y = 0; y < 64; y++)
+
+			for (int x = 0; x < CHUNK_SIZE; x++)
 			{
-				if (y < height) context.chunk.setBlock(true, x, y, z);
-				else context.chunk.setBlock(false, x, y, z);
+				for (int z = 0; z < CHUNK_SIZE; z++)
+				{
+					unsigned height = std::max<float>((sin((x + i * CHUNK_SIZE + randVal) / 32.0f) * 10.0f + sin((z  + j * CHUNK_SIZE+ randVal) / 40.0f) * 10.0f)    // Large rolling hills
+						+ (sin((x +i * CHUNK_SIZE + (randVal + randVal2) % 100) / 16.0f) * 5.0f * cos((z + j * CHUNK_SIZE + randVal2) / 20.0f) * 5.0f)       // Smaller details
+						+ (sin((x+ i * CHUNK_SIZE + (randVal + randVal2) % 100) / 8.0f) * 2.0f * cos((z + j * CHUNK_SIZE + randVal2) / 8.0f) * 2.0f),1);      // Fine noise-like bumps;
+					height += 64.0f;
+					//height = 256.f;
+					//height = 16;
+					for (int y = 0; y < CHUNK_SIZE_VERTICAL; y++)
+					{
+						if (y < height) context.chunks[i * NUM_CHUNK + j].setBlock(true, x, y, z);
+						else context.chunks[i * NUM_CHUNK + j].setBlock(false, x, y, z);
+						//context.chunks[i * NUM_CHUNK + j].setBlock(((x + y + z) % 2 == 0) ? 1 : 0, x, y, z);
+					}
+				}
 			}
+			context.chunks[i * NUM_CHUNK + j].position = { i,0,j };
+			float time = glfwGetTime();
+			context.chunks[i * NUM_CHUNK + j].generateMesh();
+			float chunkTime = glfwGetTime() - time;
+			chunkTime *= 1000;
+			Log_debug << "Chunk created: " << chunkTime << "ms\n";
+			totalTime += chunkTime;
 		}
 	}
+
+	Log_debug << "Time taken for " << NUM_CHUNK * NUM_CHUNK << " chunks: " << totalTime << "ms\n";
+	Log_debug << "Average time: " << totalTime / (NUM_CHUNK * NUM_CHUNK) << "ms\n";
 
 	context.window = window;
 
 	context.cam.isActive = false;
-	context.chunkMesh = context.chunk.generateMesh();
 
 	permAssert_msg(context.mainShader.loadFromFile(ASSETS_PATH "shaders/main.vert", ASSETS_PATH "shaders/main.frag"), "Failed to load main shaders");
 }
@@ -128,5 +155,19 @@ void update(float deltaTime)
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_RELEASE)
 		context.cam.moveSpeed = 6;
 
-	drawMesh(context.chunkMesh, context.mainShader, context.cam);
+
+	for (int i = 0; i < NUM_CHUNK; i++) {
+		for (int j = 0; j < NUM_CHUNK; j++) {
+			glm::mat4 model = glm::mat4(1);
+			model = glm::translate(model, { context.chunks[i * NUM_CHUNK + j].position.x * CHUNK_SIZE, context.chunks[i * NUM_CHUNK + j].position.y, context.chunks[i * NUM_CHUNK + j].position.z * CHUNK_SIZE });
+			
+			/*float time = glfwGetTime();
+			context.chunks[i * NUM_CHUNK + j].generateMesh();
+			float chunkTime = glfwGetTime() - time;
+			chunkTime *= 1000;
+			Log_debug << "Chunk created: " << chunkTime << "ms\n";*/
+
+			drawMesh(context.chunks[i * NUM_CHUNK + j].mesh, context.mainShader, context.cam, model);
+		}
+	}
 }

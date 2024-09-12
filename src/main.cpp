@@ -38,7 +38,7 @@ int main()
 
 	glfwMakeContextCurrent(window);
 
-	glfwSwapInterval(1); // Enable vsync
+	glfwSwapInterval(0); // Enable vsync
 
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
@@ -70,12 +70,16 @@ int main()
 
 	init(window);
 	float prevTime = 0.f, deltaTime = 0.f, currentTime = 0;
+	Log_debug << "Size of one chunk: " << (sizeof(PackedVertexData) * ((16*16*255) / 2 * 36))/(1024 * 1024) << "MB\n";
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
 		currentTime = glfwGetTime();
 		deltaTime = currentTime - prevTime;
 		prevTime = currentTime;
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_FRONT);
+		glFrontFace(GL_CW);
 		update(deltaTime);
 
 		glfwSwapBuffers(window);

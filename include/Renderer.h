@@ -6,15 +6,38 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <vector>
 
-struct Vertex
+enum FACE
 {
-	glm::vec3 position;
-	glm::vec3 normal;
+	FACE_LEFT = 0b0,
+	FACE_RIGHT = 0b1,
+	FACE_FRONT = 0b10,
+	FACE_BACK = 0b11,
+	FACE_TOP = 0b100,
+	FACE_BOTTOM = 0b101,
 };
+
+struct PackedVertexData
+{
+	char x, y, z;
+	char face;
+	char ao;
+};
+
+
+
+void setPosition(PackedVertexData &vertexData, glm::vec3 position);
+glm::vec3 getPosition(PackedVertexData &vertexData);
+
+void setNormal(PackedVertexData &vertexData, glm::vec3 normal);
+glm::vec3 getNormal(PackedVertexData &vertexData);
+
+void setAO(PackedVertexData &vertexData, uint8_t ao);
+uint8_t getAO(PackedVertexData &vertexData);
+
 
 struct Mesh
 {
-	std::vector<Vertex> vertices;
+	std::vector<PackedVertexData> vertices;
 	GLuint VAO, VBO, EBO;
 
 	void setup();
@@ -102,4 +125,4 @@ struct Camera
 	std::string getCoordsAsString();
 };
 
-void drawMesh(const Mesh& mesh, const Shader &shader, const Camera& camera);
+void drawMesh(const Mesh& mesh, const Shader &shader, const Camera& camera, glm::mat4 model);

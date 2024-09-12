@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <stb_image.h>
+#include <cmath>
 
 std::string readFile(const char* filepath)
 {
@@ -310,15 +311,14 @@ void Camera::zoom(float yoffset)
 
 #pragma endregion
 
-void drawMesh(const Mesh& mesh, const Shader &shader, const Camera& camera)
+void drawMesh(const Mesh& mesh, const Shader &shader, const Camera& camera, glm::mat4 model)
 {
-    glm::mat4 model = glm::mat4(1);
 
     glm::mat4 view = glm::mat4(1.0f);
     view = camera.getView();
 
     glm::mat4 projection = glm::mat4(1.0f);
-    projection = glm::perspective(glm::radians(camera.fov), 800.0f / 600.0f, 0.1f, 100.0f);
+    projection = glm::perspective(glm::radians(camera.fov), 800.0f / 600.0f, 0.1f, 1000.0f);
 
     glm::mat3 normalMat = glm::mat3(1.f);
     normalMat = glm::transpose(glm::inverse(view * model));
@@ -340,18 +340,116 @@ void drawMesh(const Mesh& mesh, const Shader &shader, const Camera& camera)
 void Mesh::setup()
 {
     permAssert_msg(vertices.size() > 0, "Tried to setup mesh without adding any vertices");
+
+    if (VAO != 0 && VBO != 0)
+    {
+        glDeleteBuffers(1, &VBO);
+        glDeleteVertexArrays(1, &VAO);
+    }
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(PackedVertexData), &vertices[0], GL_STATIC_DRAW);
 
-    // vertex positions
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-    // vertex normals
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+    glEnableVertexAttribArray(0); // position
+    glVertexAttribPointer(0,3, GL_BYTE, GL_FALSE, sizeof(PackedVertexData), (void*)offsetof(PackedVertexData, x));
+
+    glEnableVertexAttribArray(1); // vertexData.attributes
+    glVertexAttribPointer(1, 2, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(PackedVertexData), (void*)offsetof(PackedVertexData, face));
+
+}
+
+void setPosition(PackedVertexData &vertexData, glm::vec3 position)
+{
+    unsigned int xPos = position.x;
+    unsigned int yPos = position.y;
+    unsigned int zPos = position.z;
+
+    vertexData.x = xPos;
+    vertexData.y = yPos;
+    vertexData.z = zPos;
+}
+
+glm::vec3 getPosition(PackedVertexData &vertexData)
+{
+    return glm::vec3(vertexData.x, vertexData.y, vertexData.z);
+}
+
+void setNormal(PackedVertexData &vertexData, glm::vec3 normal)
+{
+    glm::vec3 absNormal = { abs(normal.x), abs(normal.y), abs(normal.z) };
+
+    permAssert_msg((absNormal == glm::vec3(1,0,0)) || (absNormal == glm::vec3(0, 1, 0)) || (absNormal == glm::vec3(0, 0, 1)), "Invalid vertex normals");
+
+    if (normal.x == -1)
+    {
+        vertexData.face = (FACE_LEFT);
+        return;
+    }
+
+    if (normal.x == 1)
+    {
+        vertexData.face = (FACE_RIGHT);
+        return;
+    }
+
+    if (normal.y == -1)
+    {
+        vertexData.face = (FACE_BOTTOM);
+        return;
+    }
+
+    if (normal.y == 1)
+    {
+        vertexData.face = (FACE_TOP);
+        return;
+    }
+
+    if (normal.z == -1)
+    {
+        vertexData.face = (FACE_BACK);
+        return;
+    }
+
+    if (normal.z == 1)
+    {
+        vertexData.face = (FACE_FRONT);
+        return;
+    }
+}
+
+glm::vec3 getNormal(PackedVertexData &vertexData)
+{
+    int normal;
+    normal = vertexData.face;
+
+    switch (normal)
+    {
+    case FACE_LEFT:
+        return glm::vec3(-1, 0, 0);
+    case FACE_RIGHT:
+        return glm::vec3(1, 0, 0);
+    case FACE_BOTTOM:
+        return glm::vec3(0, -1, 0);
+    case FACE_TOP:
+        return glm::vec3(0, 1, 0);
+    case FACE_BACK:
+        return glm::vec3(0, 0, -1);
+    case FACE_FRONT:
+        return glm::vec3(0, 0, 1);
+    }
+    return glm::vec3();
+}
+
+void setAO(PackedVertexData &vertexData, uint8_t ao)
+{
+    vertexData.ao = ao;
+}
+
+uint8_t getAO(PackedVertexData &vertexData)
+{
+    return vertexData.ao;
 }
