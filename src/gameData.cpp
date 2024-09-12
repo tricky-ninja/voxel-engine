@@ -148,4 +148,92 @@ void Chunk::generateMesh()
 	mesh.setup();
 }
 
+bool* World::getChunkData(int x, int z)
+{
+	if (chunks.find({x,z}) == chunks.end()) return nullptr;
+	return &chunks.find({ x,z })->second.data[0];
+}
 
+void World::render(const Shader& shader, const Camera &camera)
+{
+	for (const auto& chunk : chunks)
+	{
+		float x = std::get<0>(chunk.first);
+		float z = std::get<1>(chunk.first);
+
+		glm::vec3 pos = { x * CHUNK_SIZE, 0, z * CHUNK_SIZE};
+
+		glm::mat4 model = glm::mat4(1.f);
+		model = glm::translate(model, pos);
+		shader.bind();
+		shader.setFloat("renderDistance", RENDER_DISTANCE);
+		drawMesh(chunk.second.mesh, shader, camera, model);
+	}
+}
+
+void World::generate(int chunkX, int chunkZ)
+{
+	if (chunks.find({ chunkX,chunkZ }) != chunks.end()) return;
+	Log_debug << chunkX << ", " << chunkZ << "\n";
+	
+	chunks.emplace(std::make_tuple(chunkX, chunkZ), Chunk());
+	Chunk& chunk = chunks.find({ chunkX, chunkZ })->second;
+	
+	for (int x = 0; x < CHUNK_SIZE; x++)
+	{
+		for (int z = 0; z < CHUNK_SIZE; z++)
+		{
+			unsigned height = std::max<float>((sin((x + chunkX * CHUNK_SIZE + 0) / 32.0f) * 10.0f + sin((z + chunkZ * CHUNK_SIZE + 0) / 40.0f) * 10.0f)
+				+ (sin((x + chunkX * CHUNK_SIZE + (0 + 0) % 100) / 16.0f) * 5.0f * cos((z + chunkZ * CHUNK_SIZE + 0) / 20.0f) * 5.0f)
+				+ (sin((x + chunkX * CHUNK_SIZE + (0 + 0) % 100) / 8.0f) * 2.0f * cos((z + chunkZ * CHUNK_SIZE + 0) / 8.0f) * 2.0f), 1);
+			height += 64.0f;
+
+			for (int y = 0; y < CHUNK_SIZE_VERTICAL; y++)
+			{
+				if (y < height) chunk.setBlock(true, x, y, z);
+				else chunk.setBlock(false, x, y, z);
+			}
+		}
+	}
+	chunk.generateMesh();
+}
+
+void World::update()
+{
+	int startX = currentPos.x / CHUNK_SIZE;
+	int startZ = currentPos.z / CHUNK_SIZE;
+
+	for (int x = -RENDER_DISTANCE+1; x < RENDER_DISTANCE; x++)
+	{
+		for (int z = -RENDER_DISTANCE+1; z < RENDER_DISTANCE; z++)
+		{
+			generate(x + startX, z + startZ);
+		}
+	}
+
+	std::vector<std::tuple<int, int>> chunksToDelete;
+	for (const auto& chunk : chunks)
+	{
+		int x = std::get<0>(chunk.first);
+		int z = std::get<1>(chunk.first);
+
+		if (x <= (-RENDER_DISTANCE + startX) || x >= (RENDER_DISTANCE + startX))
+		{
+			Log_debug << "Pushed to erase: " << x << ", " << z << "\n";
+			chunksToDelete.push_back(std::make_tuple(x, z));
+		}
+		else if (z <= (-RENDER_DISTANCE + startZ) || z >= (RENDER_DISTANCE + startZ))
+		{
+			Log_debug << "Pushed to erase: " << x << ", " << z << "\n";
+			chunksToDelete.push_back(std::make_tuple(x, z));
+
+		}
+	}
+
+	for (const auto& key : chunksToDelete)
+	{
+		chunks.erase(key);
+	}
+
+	
+}
