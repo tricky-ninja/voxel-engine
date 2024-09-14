@@ -4,75 +4,105 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "Logger.h"
 
-struct VertexData
+#pragma region HELPER_VARS
+
+static struct VertexData
 {
 	glm::vec3 position;
 	glm::vec3 normal;
+	glm::vec2 texCoords;
 };
 
-std::vector<VertexData> cube = {
+static std::vector<VertexData> cube = {
 	// Back face
-	{ glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0f,  0.0f, -1.0f)},
-	{ glm::vec3(0.f,  1.f, 0.f), glm::vec3(0.0f,  0.0f, -1.0f)},
-	{ glm::vec3( 1.f,  1.f, 0.f),  glm::vec3(0.0f,  0.0f, -1.0f)},
-	{ glm::vec3( 1.f,  1.f, 0.f),  glm::vec3(0.0f,  0.0f, -1.0f)},
-	{ glm::vec3( 1.f, 0.f, 0.f),  glm::vec3(0.0f,  0.0f, -1.0f)},
-	{ glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0f,  0.0f, -1.0f)},
+	{ glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec2(0.0f, 0.0f) },
+	{ glm::vec3(0.f,  1.f, 0.f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec2(0.0f, 1.0f) },
+	{ glm::vec3(1.f,  1.f, 0.f),  glm::vec3(0.0f,  0.0f, -1.0f), glm::vec2(1.0f, 1.0f) },
+	{ glm::vec3(1.f,  1.f, 0.f),  glm::vec3(0.0f,  0.0f, -1.0f), glm::vec2(1.0f, 1.0f) },
+	{ glm::vec3(1.f, 0.f, 0.f),  glm::vec3(0.0f,  0.0f, -1.0f), glm::vec2(1.0f, 0.0f) },
+	{ glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec2(0.0f, 0.0f) },
 
 	// Front face
-	{ glm::vec3(0.f, 0.f,  1.f), glm::vec3(0.0f,  0.0f,  1.0f)},
-	{ glm::vec3(1.f, 0.f,  1.f),  glm::vec3(0.0f,  0.0f,  1.0f)},
-	{ glm::vec3(1.f,  1.f,  1.f),  glm::vec3(0.0f,  0.0f,  1.0f)},
-	{ glm::vec3(1.f,  1.f,  1.f),  glm::vec3(0.0f,  0.0f,  1.0f)},
-	{ glm::vec3(0.f,  1.f,  1.f), glm::vec3(0.0f,  0.0f,  1.0f)},
-	{ glm::vec3(0.f, 0.f,  1.f), glm::vec3(0.0f,  0.0f,  1.0f)},
+	{ glm::vec3(0.f, 0.f,  1.f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec2(0.0f, 0.0f) },
+	{ glm::vec3(1.f, 0.f,  1.f),  glm::vec3(0.0f,  0.0f,  1.0f), glm::vec2(1.0f, 0.0f) },
+	{ glm::vec3(1.f,  1.f,  1.f),  glm::vec3(0.0f,  0.0f,  1.0f), glm::vec2(1.0f, 1.0f) },
+	{ glm::vec3(1.f,  1.f,  1.f),  glm::vec3(0.0f,  0.0f,  1.0f), glm::vec2(1.0f, 1.0f) },
+	{ glm::vec3(0.f,  1.f,  1.f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec2(0.0f, 1.0f) },
+	{ glm::vec3(0.f, 0.f,  1.f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec2(0.0f, 0.0f) },
 
 	// Left face
-	{ glm::vec3(0.f, 0.f, 0.f), glm::vec3(-1.0f,  0.0f,  0.0f)},
-	{ glm::vec3(0.f, 0.f,  1.f), glm::vec3(-1.0f,  0.0f,  0.0f)},
-	{ glm::vec3(0.f,  1.f,  1.f), glm::vec3(-1.0f,  0.0f,  0.0f)},
-	{ glm::vec3(0.f,  1.f,  1.f), glm::vec3(-1.0f,  0.0f,  0.0f)},
-	{ glm::vec3(0.f,  1.f, 0.f), glm::vec3(-1.0f,  0.0f,  0.0f)},
-	{ glm::vec3(0.f, 0.f, 0.f), glm::vec3(-1.0f,  0.0f,  0.0f)},
+	{ glm::vec3(0.f, 0.f, 0.f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec2(0.0f, 0.0f) },
+	{ glm::vec3(0.f, 0.f,  1.f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec2(1.0f, 0.0f) },
+	{ glm::vec3(0.f,  1.f,  1.f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec2(1.0f, 1.0f) },
+	{ glm::vec3(0.f,  1.f,  1.f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec2(1.0f, 1.0f) },
+	{ glm::vec3(0.f,  1.f, 0.f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec2(0.0f, 1.0f) },
+	{ glm::vec3(0.f, 0.f, 0.f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec2(0.0f, 0.0f) },
 
 	// Right face
-	{ glm::vec3(1.f, 0.f, 0.f),  glm::vec3(1.0f,  0.0f,  0.0f)},
-	{ glm::vec3(1.f,  1.f, 0.f),  glm::vec3(1.0f,  0.0f,  0.0f)},
-	{ glm::vec3(1.f,  1.f,  1.f),  glm::vec3(1.0f,  0.0f,  0.0f)},
-	{ glm::vec3(1.f,  1.f,  1.f),  glm::vec3(1.0f,  0.0f,  0.0f)},
-	{ glm::vec3(1.f, 0.f,  1.f),  glm::vec3(1.0f,  0.0f,  0.0f)},
-	{ glm::vec3(1.f, 0.f, 0.f),  glm::vec3(1.0f,  0.0f,  0.0f)},
+	{ glm::vec3(1.f, 0.f, 0.f),  glm::vec3(1.0f,  0.0f,  0.0f), glm::vec2(0.0f, 0.0f) },
+	{ glm::vec3(1.f,  1.f, 0.f),  glm::vec3(1.0f,  0.0f,  0.0f), glm::vec2(0.0f, 1.0f) },
+	{ glm::vec3(1.f,  1.f,  1.f),  glm::vec3(1.0f,  0.0f,  0.0f), glm::vec2(1.0f, 1.0f) },
+	{ glm::vec3(1.f,  1.f,  1.f),  glm::vec3(1.0f,  0.0f,  0.0f), glm::vec2(1.0f, 1.0f) },
+	{ glm::vec3(1.f, 0.f,  1.f),  glm::vec3(1.0f,  0.0f,  0.0f), glm::vec2(1.0f, 0.0f) },
+	{ glm::vec3(1.f, 0.f, 0.f),  glm::vec3(1.0f,  0.0f,  0.0f), glm::vec2(0.0f, 0.0f) },
 
 	// Bottom face
-	{ glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0f, -1.0f,  0.0f)},
-	{ glm::vec3(1.f, 0.f, 0.f),  glm::vec3(0.0f, -1.0f,  0.0f)},
-	{ glm::vec3(1.f, 0.f,  1.f),  glm::vec3(0.0f, -1.0f,  0.0f)},
-	{ glm::vec3(1.f, 0.f,  1.f),  glm::vec3(0.0f, -1.0f,  0.0f)},
-	{ glm::vec3(0.f, 0.f,  1.f), glm::vec3(0.0f, -1.0f,  0.0f)},
-	{ glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0f, -1.0f,  0.0f)},
-
+	{ glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec2(0.0f, 0.0f) },
+	{ glm::vec3(1.f, 0.f, 0.f),  glm::vec3(0.0f, -1.0f,  0.0f), glm::vec2(1.0f, 0.0f) },
+	{ glm::vec3(1.f, 0.f,  1.f),  glm::vec3(0.0f, -1.0f,  0.0f), glm::vec2(1.0f, 1.0f) },
+	{ glm::vec3(1.f, 0.f,  1.f),  glm::vec3(0.0f, -1.0f,  0.0f), glm::vec2(1.0f, 1.0f) },
+	{ glm::vec3(0.f, 0.f,  1.f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec2(0.0f, 1.0f) },
+	{ glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec2(0.0f, 0.0f) },
 
 	// Top face
-	{ glm::vec3(0.f,  1.f, 0.f), glm::vec3(0.0f,  1.0f,  0.0f)},
-	{ glm::vec3(0.f,  1.f,  1.f), glm::vec3(0.0f,  1.0f,  0.0f)},
-	{ glm::vec3(1.f,  1.f,  1.f),  glm::vec3(0.0f,  1.0f,  0.0f)},
-	{ glm::vec3(1.f,  1.f,  1.f),  glm::vec3(0.0f,  1.0f,  0.0f)},
-	{ glm::vec3(1.f,  1.f, 0.f),  glm::vec3(0.0f,  1.0f,  0.0f)},
-	{ glm::vec3(0.f,  1.f, 0.f), glm::vec3(0.0f,  1.0f,  0.0f)}
+	{ glm::vec3(0.f,  1.f, 0.f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec2(0.0f, 0.0f) },
+	{ glm::vec3(0.f,  1.f,  1.f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec2(0.0f, 1.0f) },
+	{ glm::vec3(1.f,  1.f,  1.f),  glm::vec3(0.0f,  1.0f,  0.0f), glm::vec2(1.0f, 1.0f) },
+	{ glm::vec3(1.f,  1.f,  1.f),  glm::vec3(0.0f,  1.0f,  0.0f), glm::vec2(1.0f, 1.0f) },
+	{ glm::vec3(1.f,  1.f, 0.f),  glm::vec3(0.0f,  1.0f,  0.0f), glm::vec2(1.0f, 0.0f) },
+	{ glm::vec3(0.f,  1.f, 0.f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec2(0.0f, 0.0f) }
 };
+
+#pragma endregion
 
 int calculateAO(bool side1, bool side2, bool corner) {
 	if (side1 && side2) return 0;
 	return 3 - (side1 + side2 + corner);
 }
 
-bool Chunk::blockAt(unsigned x, unsigned y, unsigned z)
+BlockData Chunk::blockAt(int x, unsigned y, int z)
 {
-	if ((x >= CHUNK_SIZE) || (y >= CHUNK_SIZE_VERTICAL) || (z >= CHUNK_SIZE)) return false;
-	return data[x | (z * CHUNK_SIZE) | (y * CHUNK_SIZE * CHUNK_SIZE)];
+	// Boundary checks
+	if (x < -1 || x > CHUNK_SIZE || z < -1 || z > CHUNK_SIZE || y >= CHUNK_SIZE_VERTICAL)
+		return false;
+
+	// Special corner cases: reject invalid boundary conditions
+	if ((x == -1 && z == -1) || (x == -1 && z == CHUNK_SIZE) ||
+		(x == CHUNK_SIZE && z == -1) || (x == CHUNK_SIZE && z == CHUNK_SIZE))
+		return false;
+
+	// Handle neighbor chunks
+	if (x == -1 && left != nullptr)
+		return left->data[(CHUNK_SIZE - 1) | (z * CHUNK_SIZE) | (y * CHUNK_SIZE * CHUNK_SIZE)];
+
+	if (x == CHUNK_SIZE && right != nullptr)
+		return right->data[0 | (z * CHUNK_SIZE) | (y * CHUNK_SIZE * CHUNK_SIZE)];
+
+	if (z == -1 && back != nullptr)
+		return back->data[x | ((CHUNK_SIZE - 1) * CHUNK_SIZE) | (y * CHUNK_SIZE * CHUNK_SIZE)];
+
+	if (z == CHUNK_SIZE && front != nullptr)
+		return front->data[x | (0 * CHUNK_SIZE) | (y * CHUNK_SIZE * CHUNK_SIZE)];
+
+	// Return block from the current chunk if within bounds
+	if (x >= 0 && x < CHUNK_SIZE && z >= 0 && z < CHUNK_SIZE)
+		return data[x | (z * CHUNK_SIZE) | (y * CHUNK_SIZE * CHUNK_SIZE)];
+
+	return false;
 }
 
-void Chunk::setBlock(bool value, unsigned x, unsigned y, unsigned z)
+
+void Chunk::setBlock(BlockData value, unsigned x, unsigned y, unsigned z)
 {
 	if ((x >= CHUNK_SIZE) || (y >= CHUNK_SIZE_VERTICAL) || (z >= CHUNK_SIZE))
 	{
@@ -80,6 +110,7 @@ void Chunk::setBlock(bool value, unsigned x, unsigned y, unsigned z)
 		return;
 	}
 	data[x | (z * CHUNK_SIZE) | (y * CHUNK_SIZE * CHUNK_SIZE)] = value;
+	dirty = true;
 }
 
 void Chunk::generateMesh()
@@ -132,11 +163,34 @@ void Chunk::generateMesh()
 						glm::vec3 side1 = (sideOffset1 * multiplier) + glm::vec3(x, y, z) + offsets[face];
 						glm::vec3 side2 = (sideOffset2 * multiplier) + glm::vec3(x, y, z) + offsets[face];
 						glm::vec3 corner = ((sideOffset2 + sideOffset1) * multiplier) + glm::vec3(x, y, z) + offsets[face];
+						
+						glm::vec2 uv;
+
+						if (offsets[face].x != 0)
+						{
+							newVertex.textureID = 3;
+						}
+						else if (offsets[face].y != 0)
+						{
+							newVertex.textureID = 0;
+						}
+						else if (offsets[face].z != 0)
+						{
+							newVertex.textureID = 3;
+						}
+						uv = cube[face * 6 + vertex].texCoords;
+						
+						if (uv == glm::vec2(1, 1)) newVertex.uv = 3;
+						if (uv == glm::vec2(1, 0)) newVertex.uv = 2;
+						if (uv == glm::vec2(0, 1)) newVertex.uv = 1;
+						if (uv == glm::vec2(0, 0)) newVertex.uv = 0;
+
 
 						bool blockSide1 = blockAt(side1.x, side1.y, side1.z);
 						bool blockSide2 = blockAt(side2.x, side2.y, side2.z);
 						bool blockCorner = blockAt(corner.x, corner.y, corner.z);
 						setAO(newVertex,calculateAO(blockSide1, blockSide2, blockCorner));
+						//setAO(newVertex, 3.f);
 
 						setNormal(newVertex, cube[face * 6 + vertex].normal);
 						mesh.vertices.push_back(newVertex);
@@ -146,15 +200,16 @@ void Chunk::generateMesh()
 		}
 	}
 	mesh.setup();
+	dirty = false;
 }
 
-bool* World::getChunkData(int x, int z)
+Chunk* ChunkManager::getChunk(int x, int z)
 {
 	if (chunks.find({x,z}) == chunks.end()) return nullptr;
-	return &chunks.find({ x,z })->second.data[0];
+	return &chunks.find({ x,z })->second;
 }
 
-void World::render(const Shader& shader, const Camera &camera)
+void ChunkManager::render(const Shader& shader, const Camera &camera)
 {
 	for (const auto& chunk : chunks)
 	{
@@ -167,25 +222,27 @@ void World::render(const Shader& shader, const Camera &camera)
 		model = glm::translate(model, pos);
 		shader.bind();
 		shader.setFloat("renderDistance", RENDER_DISTANCE);
+		shader.unbind();
 		drawMesh(chunk.second.mesh, shader, camera, model);
 	}
 }
 
-void World::generate(int chunkX, int chunkZ)
+// TODO: Implement cubic chunks
+void ChunkManager::generate(int chunkX, int chunkZ)
 {
 	if (chunks.find({ chunkX,chunkZ }) != chunks.end()) return;
 	Log_debug << chunkX << ", " << chunkZ << "\n";
 	
 	chunks.emplace(std::make_tuple(chunkX, chunkZ), Chunk());
-	Chunk& chunk = chunks.find({ chunkX, chunkZ })->second;
+	Chunk &chunk = chunks.find({chunkX, chunkZ})->second;
 	
 	for (int x = 0; x < CHUNK_SIZE; x++)
 	{
 		for (int z = 0; z < CHUNK_SIZE; z++)
 		{
-			unsigned height = std::max<float>((sin((x + chunkX * CHUNK_SIZE + 0) / 32.0f) * 10.0f + sin((z + chunkZ * CHUNK_SIZE + 0) / 40.0f) * 10.0f)
+			unsigned height = std::max<float>(abs((sin((x + chunkX * CHUNK_SIZE + 0) / 32.0f) * 10.0f + sin((z + chunkZ * CHUNK_SIZE + 0) / 40.0f) * 10.0f)
 				+ (sin((x + chunkX * CHUNK_SIZE + (0 + 0) % 100) / 16.0f) * 5.0f * cos((z + chunkZ * CHUNK_SIZE + 0) / 20.0f) * 5.0f)
-				+ (sin((x + chunkX * CHUNK_SIZE + (0 + 0) % 100) / 8.0f) * 2.0f * cos((z + chunkZ * CHUNK_SIZE + 0) / 8.0f) * 2.0f), 1);
+				+ (sin((x + chunkX * CHUNK_SIZE + (0 + 0) % 100) / 8.0f) * 2.0f * cos((z + chunkZ * CHUNK_SIZE + 0) / 8.0f) * 2.0f)), 1);
 			height += 64.0f;
 
 			for (int y = 0; y < CHUNK_SIZE_VERTICAL; y++)
@@ -195,13 +252,22 @@ void World::generate(int chunkX, int chunkZ)
 			}
 		}
 	}
-	chunk.generateMesh();
+	chunk.dirty = true;
 }
 
-void World::update()
+void ChunkManager::update(glm::vec3 currentPos)
 {
 	int startX = currentPos.x / CHUNK_SIZE;
 	int startZ = currentPos.z / CHUNK_SIZE;
+
+	if (startX == lastX && startZ == lastZ)
+	{
+		if (!firstLoad) return;
+		firstLoad = false;
+	}
+
+	lastX = startX;
+	lastZ = startZ;
 
 	for (int x = -RENDER_DISTANCE+1; x < RENDER_DISTANCE; x++)
 	{
@@ -209,6 +275,33 @@ void World::update()
 		{
 			generate(x + startX, z + startZ);
 		}
+	}
+
+	for (auto& chunk : chunks)
+	{
+		int x = std::get<0>(chunk.first);
+		int z = std::get<1>(chunk.first);
+
+		Chunk& chunkObj = chunk.second;
+
+		auto updateFlag = [](Chunk*& neighbor, int& flags, int bit, Chunk* newChunk) {
+			flags |= (neighbor == nullptr) << bit;  // Store current state
+			neighbor = newChunk;                    // Update neighbor
+			flags ^= (neighbor == nullptr) << bit;  // XOR to detect changes
+			};
+
+		int changeFlags = 0;
+
+		updateFlag(chunkObj.left, changeFlags, 0, getChunk(x - 1, z));
+		updateFlag(chunkObj.right, changeFlags, 1, getChunk(x + 1, z));
+		updateFlag(chunkObj.front, changeFlags, 2, getChunk(x, z + 1));
+		updateFlag(chunkObj.back, changeFlags, 3, getChunk(x, z - 1));
+
+		if (changeFlags != 0) {
+			chunkObj.dirty = true;
+		}
+
+		if (chunkObj.dirty) chunkObj.generateMesh();
 	}
 
 	std::vector<std::tuple<int, int>> chunksToDelete;
@@ -232,6 +325,7 @@ void World::update()
 
 	for (const auto& key : chunksToDelete)
 	{
+		//free(chunks[key]);
 		chunks.erase(key);
 	}
 

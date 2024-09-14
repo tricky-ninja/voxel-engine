@@ -21,6 +21,8 @@ struct PackedVertexData
 	char x, y, z;
 	char face;
 	char ao;
+	char uv;
+	char textureID;
 };
 
 

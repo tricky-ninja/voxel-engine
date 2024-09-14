@@ -8,11 +8,12 @@
 
 struct GameContext
 {
-	World world;
+	ChunkManager world;
 	Camera cam;
 	Shader mainShader;
 	GLFWwindow* window;
 	bool renderWrieframe = false;
+	Texture mainAtlas;
 };
 
 GameContext context;
@@ -65,11 +66,14 @@ void init(GLFWwindow* window)
 	context.cam.turn(1200, -400);
 	context.cam.updateVectors();
 
-	context.world.update();
+	context.world.update(context.cam.pos);
 
 	context.window = window;
 
 	context.cam.isActive = false;
+
+	context.mainAtlas.loadFromFile(ASSETS_PATH "textures/atlas.png");
+	//context.mainAtlas.loadFromFile(ASSETS_PATH "textures/container.png");
 
 	permAssert_msg(context.mainShader.loadFromFile(ASSETS_PATH "shaders/main.vert", ASSETS_PATH "shaders/main.frag"), "Failed to load main shaders");
 }
@@ -120,7 +124,9 @@ void update(float deltaTime)
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_RELEASE)
 		context.cam.moveSpeed = 6;
 
-	context.world.currentPos = context.cam.pos;
-	context.world.update();
+	context.world.update(context.cam.pos);
+	context.mainShader.bind();
+	context.mainAtlas.bind(1);
+	context.mainShader.setInt("texture_atlas", context.mainAtlas.slot);
 	context.world.render(context.mainShader, context.cam);
 }

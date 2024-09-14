@@ -50,5 +50,8 @@ void APIENTRY glDebugOutput(GLenum source,
 	};
 
 	if (errorLevel == LOG_CRIT) permAssert_msg(false, std::string(std::string("OpenGL ERROR: ") + message).c_str());
+#if PRODUCTION_BUILD == 0
+	if (errorLevel != LOG_INFO) __debugbreak();
+#endif
 
 }

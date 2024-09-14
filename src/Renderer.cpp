@@ -318,7 +318,7 @@ void drawMesh(const Mesh& mesh, const Shader &shader, const Camera& camera, glm:
     view = camera.getView();
 
     glm::mat4 projection = glm::mat4(1.0f);
-    projection = glm::perspective(glm::radians(camera.fov), 800.0f / 600.0f, 0.1f, 1000.0f);
+    projection = glm::perspective(glm::radians(camera.fov), 800.0f / 600.0f, 0.1f, 100000.0f);
 
     glm::mat3 normalMat = glm::mat3(1.f);
     normalMat = glm::transpose(glm::inverse(view * model));
@@ -341,11 +341,13 @@ void Mesh::setup()
 {
     permAssert_msg(vertices.size() > 0, "Tried to setup mesh without adding any vertices");
 
-    if (VAO != 0 && VBO != 0)
+    if (VAO != 0)
     {
-        glDeleteBuffers(1, &VBO);
         glDeleteVertexArrays(1, &VAO);
     }
+
+    if (VBO != 0) glDeleteBuffers(1, &VBO);
+
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
 
@@ -355,10 +357,16 @@ void Mesh::setup()
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(PackedVertexData), &vertices[0], GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0); // position
-    glVertexAttribPointer(0,3, GL_BYTE, GL_FALSE, sizeof(PackedVertexData), (void*)offsetof(PackedVertexData, x));
+    glVertexAttribPointer(0,3, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(PackedVertexData), (void*)offsetof(PackedVertexData, x));
 
-    glEnableVertexAttribArray(1); // vertexData.attributes
+    glEnableVertexAttribArray(1); // cube face
     glVertexAttribPointer(1, 2, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(PackedVertexData), (void*)offsetof(PackedVertexData, face));
+
+    glEnableVertexAttribArray(2); // texture coords
+    glVertexAttribPointer(2, 1, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(PackedVertexData), (void*)offsetof(PackedVertexData, uv));
+
+    glEnableVertexAttribArray(3); // texture id (in the atlas)
+    glVertexAttribPointer(3, 1, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(PackedVertexData), (void*)offsetof(PackedVertexData, textureID));
 
 }
 
