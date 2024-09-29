@@ -211,6 +211,7 @@ bool Texture::loadFromFile(const char* filepath, unsigned int wrap, unsigned int
     if (bitsPerPixel == 1) format = GL_RED;
 
     glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 4);
     glGenerateMipmap(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, 0);
     stbi_image_free(data);
@@ -339,7 +340,11 @@ void drawMesh(const Mesh& mesh, const Shader &shader, const Camera& camera, glm:
 
 void Mesh::setup()
 {
-    permAssert_msg(vertices.size() > 0, "Tried to setup mesh without adding any vertices");
+    if (vertices.size() == 0)
+    {
+        Log_warn << "Tried to initialise mesh without vertices\n";
+        return;
+    }
 
     if (VAO != 0)
     {

@@ -4,11 +4,14 @@
 #include "gameData.h"
 #include <algorithm>
 
-#define NUM_CHUNK 30
+int neg(float val)
+{
+	return (val < 0) ? -1 : 1;
+}
 
 struct GameContext
 {
-	ChunkManager world;
+	World world;
 	Camera cam;
 	Shader mainShader;
 	GLFWwindow* window;
@@ -30,10 +33,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		case GLFW_KEY_F3:
 			context.renderWrieframe = !context.renderWrieframe;
 			break;
-		/*case GLFW_KEY_UP:
-			context.world.currentPos.x += CHUNK_SIZE;
-			context.world.update();
-			break;*/
+		
 		}
 	}
 }
@@ -61,7 +61,7 @@ void init(GLFWwindow* window)
 {
 	srand(20);
 	context.cam;
-	context.cam.pos = { 1.0f, 64.0f, 5.0f };
+	context.cam.pos = { 1.0f, 128.0f, 5.0f };
 	context.cam.up = { 0,1,0 };
 	context.cam.turn(1200, -400);
 	context.cam.updateVectors();
@@ -76,6 +76,7 @@ void init(GLFWwindow* window)
 	//context.mainAtlas.loadFromFile(ASSETS_PATH "textures/container.png");
 
 	permAssert_msg(context.mainShader.loadFromFile(ASSETS_PATH "shaders/main.vert", ASSETS_PATH "shaders/main.frag"), "Failed to load main shaders");
+	
 }
 
 void update(float deltaTime)
@@ -119,12 +120,14 @@ void update(float deltaTime)
 		context.cam.move(DOWN, deltaTime);
 
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-		context.cam.moveSpeed = 20;
+		context.cam.moveSpeed = SPEED * 2;
 
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_RELEASE)
-		context.cam.moveSpeed = 6;
+		context.cam.moveSpeed = SPEED;
 
 	context.world.update(context.cam.pos);
+	context.world.generateTerrain();
+
 	context.mainShader.bind();
 	context.mainAtlas.bind(1);
 	context.mainShader.setInt("texture_atlas", context.mainAtlas.slot);

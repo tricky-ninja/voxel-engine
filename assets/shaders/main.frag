@@ -47,5 +47,6 @@ void main()
     vec4 fogGradient = (depth * vec4(fogColor,1));
 
 	FragColor = vec4((colorGradient).rgb, full_color.a) + fogGradient;
+//    FragColor = vec4((diffuse + ambient) * AO, 1);
 
 }

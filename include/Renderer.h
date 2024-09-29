@@ -88,7 +88,7 @@ struct Texture
 
 const float YAW = -90.f;
 const float PITCH = 0.0f;
-const float SPEED = 6;
+const float SPEED = 8;
 const float SENSITIVITY = 0.1f;
 const float ZOOM = 45.0f;
 
