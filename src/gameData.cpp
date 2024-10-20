@@ -3,6 +3,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "Logger.h"
+#include <GLFW/glfw3.h>
 
 #pragma region HELPER_VARS
 
@@ -65,11 +66,41 @@ static std::vector<VertexData> cube = {
 
 #pragma endregion
 
+#pragma region STATIC_FUNCTIONS
 
-int calculateAO(bool side1, bool side2, bool corner) {
+static int calculateAO(bool side1, bool side2, bool corner) {
 	if (side1 && side2) return 0;
 	return 3 - (side1 + side2 + corner);
 }
+
+inline static float distanceSquared(const std::tuple<int, int>& a, const std::tuple<int, int>& b) {
+	float dx = std::get<0>(a) - std::get<0>(b);
+	float dz = std::get<1>(a) - std::get<1>(b);
+	return dx * dx + dz * dz;
+}
+
+
+static glm::vec3 getBlockTextureID(BlockType block)
+{
+	glm::vec3 blockTextures[BLOCK_TYPE_COUNT - 1] = {
+		glm::vec3(3,0,3), // GRASS_BLOCK
+		glm::vec3(2,2,2), // DIRT_BLOCK
+		glm::vec3(223,223,223),  // WATER_BLOCK
+		glm::vec3(18,18,18),  // SAND_BLOCK
+		glm::vec3(1,1,1),  // STONE_BLOCK
+		glm::vec3(66,66,66),  // SNOW_BLOCK
+	};
+
+	if (block > 0 && block < BLOCK_TYPE_COUNT)
+	{
+		return blockTextures[block - 1];
+	}
+	return glm::vec3(14, 14, 14);	// return empty texture(pink color) if block id is invalid
+}
+
+#pragma endregion
+
+#pragma region CHUNK_STUFF
 
 BlockData Chunk::blockAt(int x, unsigned y, int z)
 {
@@ -125,167 +156,123 @@ void Chunk::generateMesh()
 		{0, 1, 0}    // top face
 	};
 
+	// Abs value of relative positions of blocks used to calculate ambient oclusion for each vertex
 	const glm::vec3 sideOffsets[3][2] = {
 		{{1,0,0}, {0,1,0}},
 		{{0, 1,0}, {0,0,1}},
 		{{1,0,0}, {0,0,1}}
 	};
+
 	mesh.vertices.clear();
 	mesh.vertices.reserve((CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE_VERTICAL) / 2 * 36);
 
 	waterMesh.vertices.clear();
 	waterMesh.vertices.reserve((CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE_VERTICAL) / 4 * 36);
+
 	for (int x = 0; x < CHUNK_SIZE; ++x)
 	{
 		for (int z = 0; z < CHUNK_SIZE; ++z)
 		{
 			for (int y = 0; y < CHUNK_SIZE_VERTICAL; ++y)
 			{
-				if (!blockAt(x, y, z))
-					continue;  // Skip empty blocks
+				BlockData currentBlock = blockAt(x, y, z);
+				if (!currentBlock) continue;  // Skip empty blocks
 
-				if (blockAt(x, y, z) == WATER_BLOCK)
-				{
-					for (unsigned face = 0; face < 6; ++face)
-					{
-						glm::vec3 neighborPos = glm::vec3(x, y, z) + offsets[face];
-
-						// Skip faces where the neighbor block exists
-						if (blockAt(neighborPos.x, neighborPos.y, neighborPos.z))
-							continue;
-
-						for (unsigned vertex = 0; vertex < 6; ++vertex)
-						{
-							PackedVertexData newVertex = { 0 };
-							setPosition(newVertex, (cube[face * 6 + vertex].position + glm::vec3(x, y, z)));
-
-							glm::vec2 uv;
-
-							glm::vec3 textureID = getBlockTextureID((BlockType)blockAt(x, y, z));
-
-							if (offsets[face].x != 0)
-							{
-								newVertex.textureID = textureID.y;
-							}
-							else if (offsets[face].y != 0)
-							{
-								newVertex.textureID = textureID.y;
-							}
-							else if (offsets[face].z != 0)
-							{
-								newVertex.textureID = textureID.y;
-							}
-							uv = cube[face * 6 + vertex].texCoords;
-
-							if (uv == glm::vec2(1, 1)) newVertex.uv = 3;
-							if (uv == glm::vec2(1, 0)) newVertex.uv = 2;
-							if (uv == glm::vec2(0, 1)) newVertex.uv = 1;
-							if (uv == glm::vec2(0, 0)) newVertex.uv = 0;
-
-
-							setAO(newVertex, 3.f);
-
-							setNormal(newVertex, cube[face * 6 + vertex].normal);
-							waterMesh.vertices.push_back(newVertex);
-						}
-					}
-					
-					continue;
-				}
+				bool isWaterBlock = (currentBlock == WATER_BLOCK);
+				Mesh& targetMesh = isWaterBlock ? waterMesh : mesh;
 
 				for (unsigned face = 0; face < 6; ++face)
 				{
 					glm::vec3 neighborPos = glm::vec3(x, y, z) + offsets[face];
+					BlockData neighborBlock = blockAt(neighborPos.x, neighborPos.y, neighborPos.z);
 
-					// Skip faces where the neighbor block exists
-					if (blockAt(neighborPos.x, neighborPos.y, neighborPos.z) && blockAt(neighborPos.x, neighborPos.y, neighborPos.z) != WATER_BLOCK)
+					// Skip the face if a neighboring block exists. 
+					// For water blocks, skip the face if any neighboring block is present.
+					// For non-water blocks, skip the face if the neighboring block is not water.
+					if (neighborBlock && (isWaterBlock || neighborBlock != WATER_BLOCK))
 						continue;
 
-					glm::vec3 sideOffset1 = sideOffsets[face / 2][0];
-					glm::vec3 sideOffset2 = sideOffsets[face / 2][1];
-
+					glm::vec3 textureID = getBlockTextureID(currentBlock);
 					for (unsigned vertex = 0; vertex < 6; ++vertex)
 					{
 						PackedVertexData newVertex = { 0 };
-						setPosition(newVertex, (cube[face * 6 + vertex].position + glm::vec3(x, y, z)));
+						VertexData vertexData = cube[face * 6 + vertex];
 
-						glm::vec3 multiplier = glm::vec3(-1);
-						if (cube[face * 6 + vertex].position.x == 1) multiplier.x = 1;
-						if (cube[face * 6 + vertex].position.y == 1) multiplier.y = 1;
-						if (cube[face * 6 + vertex].position.z == 1) multiplier.z = 1;
-						glm::vec3 side1 = (sideOffset1 * multiplier) + glm::vec3(x, y, z) + offsets[face];
-						glm::vec3 side2 = (sideOffset2 * multiplier) + glm::vec3(x, y, z) + offsets[face];
-						glm::vec3 corner = ((sideOffset2 + sideOffset1) * multiplier) + glm::vec3(x, y, z) + offsets[face];
+						setPosition(newVertex, (vertexData.position + glm::vec3(x, y, z)));
 
-						glm::vec2 uv;
+						// Assign textureID based on the face direction
+						newVertex.textureID = offsets[face].x != 0 ? textureID.x :
+							offsets[face].y != 0 ? textureID.y :
+							textureID.z;
 
-						glm::vec3 textureID = getBlockTextureID((BlockType)blockAt(x, y, z));
+						glm::vec2 uv = vertexData.texCoords;
+						newVertex.uv = (uv == glm::vec2(1, 1)) ? 3 :
+							(uv == glm::vec2(1, 0)) ? 2 :
+							(uv == glm::vec2(0, 1)) ? 1 : 0;
 
-						if (offsets[face].x != 0)
+						if (!isWaterBlock)
 						{
-							newVertex.textureID = textureID.x;
+							// Calculate ambient oclusion if not a water block 
+							// https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/
+
+							glm::vec3 sideOffset1 = sideOffsets[face / 2][0];
+							glm::vec3 sideOffset2 = sideOffsets[face / 2][1];
+							glm::vec3 multiplier = glm::vec3(-1);
+							if (vertexData.position.x == 1) multiplier.x = 1;
+							if (vertexData.position.y == 1) multiplier.y = 1;
+							if (vertexData.position.z == 1) multiplier.z = 1;
+
+							glm::vec3 side1 = sideOffset1 * multiplier + glm::vec3(x, y, z) + offsets[face];
+							glm::vec3 side2 = sideOffset2 * multiplier + glm::vec3(x, y, z) + offsets[face];
+							glm::vec3 corner = (sideOffset1 + sideOffset2) * multiplier + glm::vec3(x, y, z) + offsets[face];
+
+							bool blockSide1 = (blockAt(side1.x, side1.y, side1.z) && blockAt(side1.x, side1.y, side1.z) != WATER_BLOCK);
+							bool blockSide2 = (blockAt(side2.x, side2.y, side2.z) && blockAt(side2.x, side2.y, side2.z) != WATER_BLOCK);
+							bool blockCorner = (blockAt(corner.x, corner.y, corner.z) && blockAt(corner.x, corner.y, corner.z) != WATER_BLOCK);
+
+							setAO(newVertex, calculateAO(blockSide1, blockSide2, blockCorner));
 						}
-						else if (offsets[face].y != 0)
+						else
 						{
-							newVertex.textureID = textureID.y;
+							setAO(newVertex, 3.f); // Flat AO for water blocks
 						}
-						else if (offsets[face].z != 0)
-						{
-							newVertex.textureID = textureID.z;
-						}
-						uv = cube[face * 6 + vertex].texCoords;
 
-						if (uv == glm::vec2(1, 1)) newVertex.uv = 3;
-						if (uv == glm::vec2(1, 0)) newVertex.uv = 2;
-						if (uv == glm::vec2(0, 1)) newVertex.uv = 1;
-						if (uv == glm::vec2(0, 0)) newVertex.uv = 0;
-
-
-						bool blockSide1 =  (blockAt(side1.x, side1.y, side1.z) && blockAt(side1.x, side1.y, side1.z) != WATER_BLOCK);
-						bool blockSide2 =  (blockAt(side2.x, side2.y, side2.z) && blockAt(side2.x, side2.y, side2.z) != WATER_BLOCK);
-						bool blockCorner = (blockAt(corner.x, corner.y, corner.z) && blockAt(corner.x, corner.y, corner.z) != WATER_BLOCK);
-						setAO(newVertex, calculateAO(blockSide1, blockSide2, blockCorner));
-
-						setNormal(newVertex, cube[face * 6 + vertex].normal);
-						mesh.vertices.push_back(newVertex);
+						setNormal(newVertex, vertexData.normal);
+						targetMesh.vertices.push_back(newVertex);
 					}
 				}
 			}
 		}
 	}
+
 	mesh.setup();
 	waterMesh.setup();
 	dirty = false;
 }
 
+#pragma endregion
+
+#pragma region WORLD_STUFF
+
+#pragma region CHUNK_MANAGEMENT
+
 Chunk* World::getChunk(int x, int z)
 {
-	if (chunks.find({ x,z }) == chunks.end()) return nullptr;
-	return &chunks.find({ x,z })->second;
-}
+	auto it = chunks.find({ x, z });
+	if (it == chunks.end()) return nullptr;
+	return &it->second;
 
-inline static float distanceSquared(const std::tuple<int, int>& a, const std::tuple<int, int>& b) {
-	float dx = std::get<0>(a) - std::get<0>(b);
-	float dz = std::get<1>(a) - std::get<1>(b);
-	return dx * dx + dz * dz;
 }
 
 void World::render(const Shader& shader, const Camera& camera)
 {
 	std::tuple<int, int> cameraPos = { camera.pos.x, camera.pos.z };
 
-	if (dirty)
-	{
-		std::sort(sortedChunkIndicies.begin(), sortedChunkIndicies.end(), [&](const std::tuple<int, int>& a, const std::tuple<int, int>& b) {
-			return distanceSquared(a, cameraPos) < distanceSquared(b, cameraPos);
-			});
-		sortedTransparentIndicies = sortedChunkIndicies;
-		std::reverse(sortedTransparentIndicies.begin(), sortedTransparentIndicies.end());
-		dirty = false;
-	}
+	shader.bind();
+	shader.setFloat("renderDistance", RENDER_DISTANCE);
+	shader.setMat4("view", glm::value_ptr(camera.getView()));
 
-	
-
+	// Render solid stuff from closest to farthest from the player
 	for (auto& key : sortedChunkIndicies)
 	{
 		int x = std::get<0>(key);
@@ -295,18 +282,16 @@ void World::render(const Shader& shader, const Camera& camera)
 		if (chunk == nullptr) continue;
 		glm::vec3 pos = { x * CHUNK_SIZE, 0, z * CHUNK_SIZE };
 
-		Log_debug << "Drawing: " << x << ", " << z << "\n";
-
 		glm::mat4 model = glm::mat4(1.f);
 		model = glm::translate(model, pos);
-		shader.bind();
-		shader.setFloat("renderDistance", RENDER_DISTANCE);
+
 		drawMesh(chunk->mesh, shader, camera, model);
 	}
 
-
-	for (auto& key : sortedTransparentIndicies)
+	// Render water(transparent stuff) from farthest to closest to the player
+	for (auto it = sortedChunkIndicies.rbegin(); it != sortedChunkIndicies.rend(); ++it)
 	{
+		auto& key = *it;
 		int x = std::get<0>(key);
 		int z = std::get<1>(key);
 
@@ -314,13 +299,9 @@ void World::render(const Shader& shader, const Camera& camera)
 		if (chunk == nullptr) continue;
 		glm::vec3 pos = { x * CHUNK_SIZE, 0, z * CHUNK_SIZE };
 
-		Log_debug << "Drawing Water: " << x << ", " << z << "\n";
-
 		glm::mat4 model = glm::mat4(1.f);
 		model = glm::translate(model, pos);
-		model = glm::translate(model, glm::vec3(0, -0.1, 0));
-		shader.bind();
-		shader.setFloat("renderDistance", RENDER_DISTANCE);
+		model = glm::translate(model, glm::vec3(0, sin(glfwGetTime()) * 0.05 - 0.07, 0));
 		if (chunk->waterMesh.vertices.size() > 0) drawMesh(chunk->waterMesh, shader, camera, model);
 	}
 }
@@ -328,52 +309,81 @@ void World::render(const Shader& shader, const Camera& camera)
 // TODO: Implement cubic chunks
 void World::generateChunk(int chunkX, int chunkZ)
 {
+	// Check if the chunk already exists, and return if it does
 	if (chunks.find({ chunkX, chunkZ }) != chunks.end()) return;
+
+	// Add a new chunk to the world and mark it as dirty
 	chunks.emplace(std::make_tuple(chunkX, chunkZ), Chunk());
 	sortedChunkIndicies.push_back({ chunkX, chunkZ });
-	dirty = true;
+
+	// Reference the newly created chunk
 	Chunk& chunk = chunks.find({ chunkX, chunkZ })->second;
 
-	for (int x = 0; x < CHUNK_SIZE; x++)
+	// Iterate through each block in the chunk
+	for (int x = 0; x < CHUNK_SIZE; ++x)
 	{
-		for (int z = 0; z < CHUNK_SIZE; z++)
+		for (int z = 0; z < CHUNK_SIZE; ++z)
 		{
-			int height = std::max<float>(((sin((x + chunkX * CHUNK_SIZE + 0) / 40.0f) * 50.0f + sin((z + chunkZ * CHUNK_SIZE + 0) / 50.0f) * 60.0f) +
-				(sin((x + chunkX * CHUNK_SIZE + 0) / 3.0f) * 4 + sin((z + chunkZ * CHUNK_SIZE + 0) / 3.0f) * 4.0f) +
-				+ (sin((x + chunkX * CHUNK_SIZE + 201 + (0 + 0) % 100) / 16.0f) * 5.0f * cos((z + chunkZ * CHUNK_SIZE + 420 + 0) / 12.0f) * 5.0f)
-				+ (sin((x + chunkX * CHUNK_SIZE + 469 + (0 + 0) % 100) / 8.0f) * 2.0f * cos((z + chunkZ * CHUNK_SIZE + 690 + 0) / 8.0f) * 2.0f)), -32);
+			// Calculate the height using a sine-based terrain generation algorithm
+			int height = std::max<float>(
+				(sin((x + chunkX * CHUNK_SIZE) / 40.0f) * 50.0f +
+					sin((z + chunkZ * CHUNK_SIZE) / 50.0f) * 60.0f +
+					sin((x + chunkX * CHUNK_SIZE) / 3.0f) * 4.0f +
+					sin((z + chunkZ * CHUNK_SIZE) / 3.0f) * 4.0f +
+					sin((x + chunkX * CHUNK_SIZE + 201) / 16.0f) * 5.0f * cos((z + chunkZ * CHUNK_SIZE + 420) / 12.0f) * 5.0f +
+					sin((x + chunkX * CHUNK_SIZE + 469) / 8.0f) * 2.0f * cos((z + chunkZ * CHUNK_SIZE + 690) / 8.0f) * 2.0f),
+				-32.0f
+			) + 64.0f; // Add an offset to the height
 
-			height += 64.0f;
-
-			for (int y = 0; y < CHUNK_SIZE_VERTICAL; y++)
+			for (int y = 0; y < CHUNK_SIZE_VERTICAL; ++y)
 			{
-				if (y < height)
+				// Set block type based on height and layer
+				if (y < height) // Below the terrain surface
 				{
 					unsigned int stoneHeight = rand() % 10;
-					if ((y) > 84 + stoneHeight) chunk.setBlock(DIRT_BLOCK, x, y, z);
-					else chunk.setBlock(STONE_BLOCK, x, y, z);
+					if (y > 84 + stoneHeight)
+						chunk.setBlock(DIRT_BLOCK, x, y, z);
+					else
+						chunk.setBlock(STONE_BLOCK, x, y, z);
+
 					unsigned sandHeight = rand() % 3;
-					if (y >= 63 && y < (64 + 6 + sandHeight)) chunk.setBlock(SAND_BLOCK, x, y, z);
+					if (y >= 63 && y < 64 + 6 + sandHeight)
+						chunk.setBlock(SAND_BLOCK, x, y, z);
 				}
-				else if (y < 64) chunk.setBlock(WATER_BLOCK, x, y, z);
-				else { 
+				else if (y < 64) // Underwater (below sea level)
+				{
+					chunk.setBlock(WATER_BLOCK, x, y, z);
+				}
+				else // Above terrain surface
+				{
 					chunk.setBlock(AIR_BLOCK, x, y, z);
-					
-						if (chunk.blockAt(x, y - 1, z) == DIRT_BLOCK) { 
-							if ((y-1) > 160)chunk.setBlock(SNOW_BLOCK, x, y - 1, z);
-							else chunk.setBlock(GRASS_BLOCK, x, y - 1, z);
-						}
+
+					// If the block below is dirt, set the appropriate surface block
+					if (chunk.blockAt(x, y - 1, z) == DIRT_BLOCK)
+					{
+						if (y - 1 > 160)
+							chunk.setBlock(SNOW_BLOCK, x, y - 1, z);
+						else
+							chunk.setBlock(GRASS_BLOCK, x, y - 1, z);
+					}
 				}
 			}
 		}
 	}
+
+	// Mark the chunk as dirty for future updates
 	chunk.dirty = true;
 }
 
+#pragma endregion
+
+#pragma region TERRAIN_LOADING_STUFF
+
 void World::generateTerrain()
 {
+	// Cap the max amounts of chunks that can be generated per frame
 	unsigned i = 0;
-	while ((!chunkQueue.empty()) && i <( RENDER_DISTANCE - 4) / 2)
+	while ((!chunkQueue.empty()) && i < (RENDER_DISTANCE - 4) / 2)
 	{
 		std::tuple<int, int> chunkIndex = chunkQueue.front();
 		int x = std::get<0>(chunkIndex);
@@ -392,6 +402,8 @@ void World::generateTerrain()
 
 		Chunk& chunkObj = chunk.second;
 
+
+		// Flag will be zero if the newChunk and neighbor are equal, otherwise it will be non zero
 		auto updateFlag = [](Chunk*& neighbor, int& flags, int bit, Chunk* newChunk) {
 			flags |= (neighbor == nullptr) << bit;  // Store current state
 			neighbor = newChunk;                    // Update neighbor
@@ -400,6 +412,8 @@ void World::generateTerrain()
 
 		int changeFlags = 0;
 
+
+		// If any chunk neighbouring the current chunk is changed then regenerate the current chunk's mesh
 		updateFlag(chunkObj.left, changeFlags, 0, getChunk(x - 1, z));
 		updateFlag(chunkObj.right, changeFlags, 1, getChunk(x + 1, z));
 		updateFlag(chunkObj.front, changeFlags, 2, getChunk(x, z + 1));
@@ -412,10 +426,12 @@ void World::generateTerrain()
 		if (chunkObj.dirty) chunkObj.generateMesh();
 	}
 
+	// Delete chunks scheduled for deletion
 	for (const auto& key : chunksToDelete)
 	{
 		Log_debug << "Erased " << std::get<0>(key) << ", " << std::get<1>(key) << "\n";
 		chunks.erase(key);
+		sortedChunkIndicies.erase(std::remove(sortedChunkIndicies.begin(), sortedChunkIndicies.end(), key), sortedChunkIndicies.end());
 	}
 	chunksToDelete.clear();
 }
@@ -426,17 +442,20 @@ void World::update(glm::vec3 currentPos)
 	int startX = currentPos.x / CHUNK_SIZE;
 	int startZ = currentPos.z / CHUNK_SIZE;
 
+	// If player hasn't moved between chunks
 	if (startX == lastX && startZ == lastZ)
 	{
 		if (!firstLoad) return;
+
+		// If this is the first time this function is called
+		sortedChunkIndicies.reserve((2 * RENDER_DISTANCE) * (2 * RENDER_DISTANCE) * 2);
 		firstLoad = false;
 	}
-
-	dirty = true;
 
 	lastX = startX;
 	lastZ = startZ;
 
+	// Schedule the chunks to be generated in a spiral order from the player
 	for (int layer = 0; layer < RENDER_DISTANCE; layer++)
 	{
 		for (int z = -layer; z < layer; z++)
@@ -449,7 +468,8 @@ void World::update(glm::vec3 currentPos)
 		}
 	}
 
-	
+
+	// Schedule chunks outside render distance to be deleted
 	for (const auto& chunk : chunks)
 	{
 		int x = std::get<0>(chunk.first);
@@ -467,25 +487,9 @@ void World::update(glm::vec3 currentPos)
 
 		}
 	}
-	
-
-
 }
 
-glm::vec3 getBlockTextureID(BlockType block)
-{
-	glm::vec3 blockTextures[BLOCK_TYPE_COUNT-1] = {
-		glm::vec3(3,0,3), // GRASS_BLOCK
-		glm::vec3(2,2,2), // DIRT_BLOCK
-		glm::vec3(223,223,223),  // WATER_BLOCK
-		glm::vec3(18,18,18),  // SAND_BLOCK
-		glm::vec3(1,1,1),  // STONE_BLOCK
-		glm::vec3(66,66,66),  // SNOW_BLOCK
-	};
+#pragma endregion
 
-	if (block > 0 && block < BLOCK_TYPE_COUNT)
-	{
-		return blockTextures[block-1];
-	}
-	return glm::vec3(14, 14, 14);
-}
+#pragma endregion
+

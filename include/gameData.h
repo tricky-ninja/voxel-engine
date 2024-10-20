@@ -46,11 +46,8 @@ struct World
 {
 	std::map<std::tuple<int, int>, Chunk> chunks;
 	std::vector < std::tuple<int, int>> sortedChunkIndicies;
-	std::vector < std::tuple<int, int>> sortedTransparentIndicies;
 	std::queue<std::tuple<int, int>> chunkQueue;
 	std::vector<std::tuple<int, int>> chunksToDelete;
-
-	bool dirty = false;
 
 	int lastX = 0;
 	int lastZ = 0;
