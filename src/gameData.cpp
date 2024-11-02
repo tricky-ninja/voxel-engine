@@ -383,6 +383,7 @@ void World::generateTerrain()
 {
 	// Cap the max amounts of chunks that can be generated per frame
 	unsigned i = 0;
+	//i < (RENDER_DISTANCE - 4) / 2
 	while ((!chunkQueue.empty()) && i < (RENDER_DISTANCE - 4) / 2)
 	{
 		std::tuple<int, int> chunkIndex = chunkQueue.front();

@@ -4,6 +4,8 @@
 #include "gameData.h"
 #include <algorithm>
 
+#include "imgui.h"
+
 int neg(float val)
 {
 	return (val < 0) ? -1 : 1;
@@ -132,4 +134,13 @@ void update(float deltaTime)
 	context.mainAtlas.bind(1);
 	context.mainShader.setInt("texture_atlas", context.mainAtlas.slot);
 	context.world.render(context.mainShader, context.cam);
+
+	ImGui::Begin("Info");
+	ImGui::Text("Hiii");
+	ImGui::End();
+
+	ImGui::Begin("Infoj");
+	ImGui::Text("Hiii");
+	ImGui::End();
+
 }
