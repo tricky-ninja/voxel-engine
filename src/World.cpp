@@ -141,7 +141,7 @@ void World::applyUpdates()
 	// Generate the chunk data for loaded chunks
 	// Cap the max amounts of chunks that can be generated per frame
 	unsigned i = 0;
-	while ((!chunkQueue.empty()) && i < 50)
+	while ((!chunkQueue.empty()) && i < maxChunksPerFrame)
 	{
 		std::tuple<int, int> chunkIndex = chunkQueue.front();
 		int x = std::get<0>(chunkIndex);

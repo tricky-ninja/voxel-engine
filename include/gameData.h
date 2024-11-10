@@ -6,7 +6,7 @@
 
 const int CHUNK_SIZE = 16;
 const int CHUNK_SIZE_VERTICAL = 256;
-const int RENDER_DISTANCE = 16;
+
 
 enum BlockType
 {
@@ -48,6 +48,9 @@ struct World
 	std::vector<std::tuple<int, int>> sortedChunkIndicies;
 	std::deque<std::tuple<int, int>> chunkQueue;
 	std::vector<std::tuple<int, int>> chunksToDelete;
+
+	int RENDER_DISTANCE = 16;
+	int maxChunksPerFrame = 16;
 
 	int lastX = 0;
 	int lastZ = 0;

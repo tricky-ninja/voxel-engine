@@ -145,11 +145,20 @@ void update(float deltaTime)
 	context->world.render(context->mainShader, context->cam);
 
 	ImGui::Begin("Info");
-	ImGui::Text("Hiii");
+	ImGui::Text("Click the window to look around, press esc to unfocus");
+	ImGui::Text("WASD - Move");
+	ImGui::Text("Ctrl(hold) - Increase speed");
+	ImGui::Text("Shift/Space - Go down/up");
+	ImGui::Text("F3 - Toggle wireframe");
+	ImGui::Text("Q - Quit");
 	ImGui::End();
 
-	ImGui::Begin("Infoj");
-	ImGui::Text("Hiii");
+	ImGui::Begin("Settings");
+	ImGui::Checkbox("Wireframe", &context->renderWrieframe);
+	ImGui::Text("Render Distance");
+	ImGui::SliderInt("##RenderDistance", &context->world.RENDER_DISTANCE, 2, 32);
+	ImGui::Text("Chunks Rendered Per Frame");
+	ImGui::SliderInt("##ChunksPerFrame", &context->world.maxChunksPerFrame, 1, 50);
 	ImGui::End();
 
 }
