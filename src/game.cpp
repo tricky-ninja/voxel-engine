@@ -6,6 +6,12 @@
 
 #include "imgui.h"
 
+struct MouseContext
+{
+	float lastX = 0;
+	float lastY = 0;
+};
+
 struct GameContext
 {
 	World world;
@@ -14,12 +20,12 @@ struct GameContext
 	GLFWwindow* window;
 	bool renderWrieframe = false;
 	Texture mainAtlas;
+	MouseContext mouse;
 };
 
 GameContext context;
 
-float lastX = 0;
-float lastY = 0;
+
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -46,10 +52,10 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	float xoffset = xpos - lastX;
-	float yoffset = lastY - ypos;
-	lastX = xpos;
-	lastY = ypos;
+	float xoffset = xpos - context.mouse.lastX;
+	float yoffset = context.mouse.lastY - ypos;
+	context.mouse.lastX = xpos;
+	context.mouse.lastY = ypos;
 	if (context.cam.isActive) context.cam.turn(xoffset, yoffset);
 }
 
@@ -63,7 +69,7 @@ void init(GLFWwindow* window)
 	context.cam.turn(1200, -400);
 	context.cam.updateVectors();
 
-	context.world.update(context.cam.pos);
+	context.world.updateState(context.cam.pos);
 
 	context.window = window;
 
@@ -79,6 +85,7 @@ void update(float deltaTime)
 {
 	glClearColor(185 / 255.f, 233 / 255.f, 250 / 255.f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glLineWidth(3);
 	if (context.renderWrieframe) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	else glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -128,8 +135,8 @@ void update(float deltaTime)
 		context.cam.moveSpeed = SPEED;
 	}
 
-	context.world.update(context.cam.pos);
-	context.world.generateTerrain();
+	context.world.updateState(context.cam.pos);
+	context.world.applyUpdates();
 
 	context.mainShader.bind();
 	context.mainAtlas.bind(1);

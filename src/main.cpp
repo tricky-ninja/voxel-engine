@@ -136,7 +136,7 @@ int main()
 
 #pragma endregion
 
-	Log_debug << "Size of one chunk: " << (sizeof(PackedVertexData) * ((16*16*128) / 2 * 36))/(1024 * 1024) << "MB\n";
+	Log_debug << "Max size of one chunk: " << (sizeof(PackedVertexData) * ((16*16*256) / 2 * 36))/(1024 * 1024) << "MB\n";
 	float prevTime = 0.f, deltaTime = 0.f, currentTime = 0;
 	init(window);
 

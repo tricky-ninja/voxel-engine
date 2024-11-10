@@ -36,8 +36,8 @@ struct Chunk
 	Mesh mesh;
 	Mesh waterMesh;
 
-	BlockData blockAt(int x, unsigned y, int z);
-	void setBlock(BlockData value, unsigned x, unsigned y, unsigned z);
+	BlockData getBlockAt(int x, unsigned y, int z);
+	void setBlockAt(BlockData value, unsigned x, unsigned y, unsigned z);
 
 	void generateMesh();
 };
@@ -56,9 +56,9 @@ struct World
 
 	Chunk* getChunk(int x, int z);
 	void render(const Shader &shader, const Camera &camera);
-	void generateChunk(int chunkX, int chunkZ);
-	void generateTerrain();
-	void update(glm::vec3 currentPos);
+	void generateChunkData(int chunkX, int chunkZ);
+	void applyUpdates();
+	void updateState(glm::vec3 currentPos);
 };
 
 glm::vec3 getBlockTextureID(BlockType block);
