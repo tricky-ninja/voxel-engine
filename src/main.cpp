@@ -82,8 +82,7 @@ int main()
 	
 #pragma region imgui
 	ImGui::CreateContext();
-	//ImGui::StyleColorsDark();
-	imguiThemes::embraceTheDarkness();
+	imguiThemes::coolBlack();
 
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;

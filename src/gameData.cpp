@@ -73,7 +73,7 @@ static int calculateAO(bool side1, bool side2, bool corner) {
 	return 3 - (side1 + side2 + corner);
 }
 
-inline static float distanceSquared(const std::tuple<int, int>& a, const std::tuple<int, int>& b) {
+static float distanceSquared(const std::tuple<int, int>& a, const std::tuple<int, int>& b) {
 	float dx = std::get<0>(a) - std::get<0>(b);
 	float dz = std::get<1>(a) - std::get<1>(b);
 	return dx * dx + dz * dz;
@@ -381,9 +381,9 @@ void World::generateChunk(int chunkX, int chunkZ)
 
 void World::generateTerrain()
 {
+	// Generate the chunk data for loaded chunks
 	// Cap the max amounts of chunks that can be generated per frame
 	unsigned i = 0;
-	//i < (RENDER_DISTANCE - 4) / 2
 	while ((!chunkQueue.empty()) && i < (RENDER_DISTANCE - 4) / 2)
 	{
 		std::tuple<int, int> chunkIndex = chunkQueue.front();
@@ -396,6 +396,7 @@ void World::generateTerrain()
 		chunkQueue.pop();
 	}
 
+	// Check if any of the generated chunks need to update their mesh
 	for (auto& chunk : chunks)
 	{
 		int x = std::get<0>(chunk.first);
@@ -405,11 +406,13 @@ void World::generateTerrain()
 
 
 		// Flag will be zero if the newChunk and neighbor are equal, otherwise it will be non zero
-		auto updateFlag = [](Chunk*& neighbor, int& flags, int bit, Chunk* newChunk) {
+		auto updateFlag = [](Chunk*& neighbor, int& flags, int bit, Chunk* newChunk)
+		{
 			flags |= (neighbor == nullptr) << bit;  // Store current state
 			neighbor = newChunk;                    // Update neighbor
 			flags ^= (neighbor == nullptr) << bit;  // XOR to detect changes
-			};
+		};
+
 
 		int changeFlags = 0;
 

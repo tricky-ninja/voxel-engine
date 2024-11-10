@@ -6,11 +6,6 @@
 
 #include "imgui.h"
 
-int neg(float val)
-{
-	return (val < 0) ? -1 : 1;
-}
-
 struct GameContext
 {
 	World world;
@@ -75,7 +70,6 @@ void init(GLFWwindow* window)
 	context.cam.isActive = false;
 
 	context.mainAtlas.loadFromFile(ASSETS_PATH "textures/atlas.png");
-	//context.mainAtlas.loadFromFile(ASSETS_PATH "textures/container.png");
 
 	permAssert_msg(context.mainShader.loadFromFile(ASSETS_PATH "shaders/main.vert", ASSETS_PATH "shaders/main.frag"), "Failed to load main shaders");
 	
@@ -90,6 +84,7 @@ void update(float deltaTime)
 
 	GLFWwindow* window = context.window;
 
+	ImGuiIO& io = ImGui::GetIO();
 
 	if (context.cam.isActive) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	else glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
@@ -97,7 +92,7 @@ void update(float deltaTime)
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
-	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) && !io.WantCaptureMouse == GLFW_PRESS)
 		context.cam.isActive = true;
 
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -122,10 +117,16 @@ void update(float deltaTime)
 		context.cam.move(DOWN, deltaTime);
 
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-		context.cam.moveSpeed = SPEED * 2;
+	{
+		context.cam.moveSpeed = SPEED * 1.5;
+		context.cam.fov = ZOOM * 1.15;
+	}
 
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_RELEASE)
+	{
+		context.cam.fov = ZOOM;
 		context.cam.moveSpeed = SPEED;
+	}
 
 	context.world.update(context.cam.pos);
 	context.world.generateTerrain();
