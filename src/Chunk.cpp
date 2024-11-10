@@ -104,10 +104,10 @@ void Chunk::generateMesh()
 	};
 
 	mesh.vertices.clear();
-	mesh.vertices.reserve((CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE_VERTICAL) / 2 * 36);
+	//mesh.vertices.reserve((CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE_VERTICAL) / 2 * 36);
 
 	waterMesh.vertices.clear();
-	waterMesh.vertices.reserve((CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE_VERTICAL) / 4 * 36);
+	/*waterMesh.vertices.reserve((CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE_VERTICAL) / 4 * 36);*/
 
 	for (int x = 0; x < CHUNK_SIZE; ++x)
 	{

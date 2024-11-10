@@ -4,7 +4,10 @@
 #include "openGLError.h"
 #include "Renderer.h"
 #include "game.h"
+
+#if PRODUCTION_BUILD == 0
 #include <crtdbg.h>
+#endif
 
 #define REMOVE_IMGUI 0
 
@@ -42,6 +45,10 @@ void logRendererInfo() {
 
 int main()
 {
+#if PRODUCTION_BUILD == 0
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+
 	Logger::setLogLevel(LOG_DEBUG);
 #if PRODUCTION_BUILD == 1
 	Logger::setLogLevel(LOG_INFO);
@@ -176,6 +183,6 @@ int main()
 
 		glfwSwapBuffers(window);
 	}
-
+	close();
 	return 0;
 }

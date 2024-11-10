@@ -13,3 +13,5 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void init(GLFWwindow *window);
 
 void update(float deltaTime);
+
+void close();

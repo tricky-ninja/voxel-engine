@@ -23,7 +23,7 @@ struct GameContext
 	MouseContext mouse;
 };
 
-GameContext context;
+GameContext *context;
 
 
 
@@ -34,7 +34,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		switch (key)
 		{
 		case GLFW_KEY_F3:
-			context.renderWrieframe = !context.renderWrieframe;
+			context->renderWrieframe = !context->renderWrieframe;
 			break;
 		
 		}
@@ -52,32 +52,33 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	float xoffset = xpos - context.mouse.lastX;
-	float yoffset = context.mouse.lastY - ypos;
-	context.mouse.lastX = xpos;
-	context.mouse.lastY = ypos;
-	if (context.cam.isActive) context.cam.turn(xoffset, yoffset);
+	float xoffset = xpos - context->mouse.lastX;
+	float yoffset = context->mouse.lastY - ypos;
+	context->mouse.lastX = xpos;
+	context->mouse.lastY = ypos;
+	if (context->cam.isActive) context->cam.turn(xoffset, yoffset);
 }
 
 
 void init(GLFWwindow* window)
 {
 	srand(20);
-	context.cam;
-	context.cam.pos = { 1.0f, 128.0f, 5.0f };
-	context.cam.up = { 0,1,0 };
-	context.cam.turn(1200, -400);
-	context.cam.updateVectors();
+	context = new GameContext();
 
-	context.world.updateState(context.cam.pos);
+	context->cam.pos = { 1.0f, 128.0f, 5.0f };
+	context->cam.up = { 0,1,0 };
+	context->cam.turn(1200, -400);
+	context->cam.updateVectors();
 
-	context.window = window;
+	context->world.updateState(context->cam.pos);
 
-	context.cam.isActive = false;
+	context->window = window;
 
-	context.mainAtlas.loadFromFile(ASSETS_PATH "textures/atlas.png");
+	context->cam.isActive = false;
 
-	permAssert_msg(context.mainShader.loadFromFile(ASSETS_PATH "shaders/main.vert", ASSETS_PATH "shaders/main.frag"), "Failed to load main shaders");
+	context->mainAtlas.loadFromFile(ASSETS_PATH "textures/atlas.png");
+
+	permAssert_msg(context->mainShader.loadFromFile(ASSETS_PATH "shaders/main.vert", ASSETS_PATH "shaders/main.frag"), "Failed to load main shaders");
 	
 }
 
@@ -86,62 +87,62 @@ void update(float deltaTime)
 	glClearColor(185 / 255.f, 233 / 255.f, 250 / 255.f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLineWidth(3);
-	if (context.renderWrieframe) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	if (context->renderWrieframe) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	else glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-	GLFWwindow* window = context.window;
+	GLFWwindow* window = context->window;
 
 	ImGuiIO& io = ImGui::GetIO();
 
-	if (context.cam.isActive) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	if (context->cam.isActive) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	else glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) && !io.WantCaptureMouse == GLFW_PRESS)
-		context.cam.isActive = true;
+		context->cam.isActive = true;
 
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-		context.cam.isActive = false;
+		context->cam.isActive = false;
 
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		context.cam.move(FORWARD, deltaTime);
+		context->cam.move(FORWARD, deltaTime);
 
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		context.cam.move(BACKWARD, deltaTime);
+		context->cam.move(BACKWARD, deltaTime);
 
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		context.cam.move(LEFT, deltaTime);
+		context->cam.move(LEFT, deltaTime);
 
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		context.cam.move(RIGHT, deltaTime);
+		context->cam.move(RIGHT, deltaTime);
 
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-		context.cam.move(UP, deltaTime);
+		context->cam.move(UP, deltaTime);
 
 	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-		context.cam.move(DOWN, deltaTime);
+		context->cam.move(DOWN, deltaTime);
 
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
 	{
-		context.cam.moveSpeed = SPEED * 1.5;
-		context.cam.fov = ZOOM * 1.15;
+		context->cam.moveSpeed = SPEED * 1.5;
+		context->cam.fov = ZOOM * 1.15;
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_RELEASE)
 	{
-		context.cam.fov = ZOOM;
-		context.cam.moveSpeed = SPEED;
+		context->cam.fov = ZOOM;
+		context->cam.moveSpeed = SPEED;
 	}
 
-	context.world.updateState(context.cam.pos);
-	context.world.applyUpdates();
+	context->world.updateState(context->cam.pos);
+	context->world.applyUpdates();
 
-	context.mainShader.bind();
-	context.mainAtlas.bind(1);
-	context.mainShader.setInt("texture_atlas", context.mainAtlas.slot);
-	context.world.render(context.mainShader, context.cam);
+	context->mainShader.bind();
+	context->mainAtlas.bind(1);
+	context->mainShader.setInt("texture_atlas", context->mainAtlas.slot);
+	context->world.render(context->mainShader, context->cam);
 
 	ImGui::Begin("Info");
 	ImGui::Text("Hiii");
@@ -151,4 +152,10 @@ void update(float deltaTime)
 	ImGui::Text("Hiii");
 	ImGui::End();
 
+}
+
+void close()
+{
+	context->world.deleteAll();
+	delete context;
 }

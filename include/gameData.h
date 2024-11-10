@@ -2,7 +2,7 @@
 #include "Renderer.h"
 #include <map>
 #include <tuple>
-#include <queue>
+#include <deque>
 
 const int CHUNK_SIZE = 16;
 const int CHUNK_SIZE_VERTICAL = 256;
@@ -44,9 +44,9 @@ struct Chunk
 
 struct World
 {
-	std::map<std::tuple<int, int>, Chunk> chunks;
-	std::vector < std::tuple<int, int>> sortedChunkIndicies;
-	std::queue<std::tuple<int, int>> chunkQueue;
+	std::map<std::tuple<int, int>, Chunk*> chunks;
+	std::vector<std::tuple<int, int>> sortedChunkIndicies;
+	std::deque<std::tuple<int, int>> chunkQueue;
 	std::vector<std::tuple<int, int>> chunksToDelete;
 
 	int lastX = 0;
@@ -59,6 +59,7 @@ struct World
 	void generateChunkData(int chunkX, int chunkZ);
 	void applyUpdates();
 	void updateState(glm::vec3 currentPos);
+	void deleteAll();
 };
 
 glm::vec3 getBlockTextureID(BlockType block);

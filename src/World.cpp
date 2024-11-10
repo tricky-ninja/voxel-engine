@@ -4,6 +4,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "Logger.h"
 #include <GLFW/glfw3.h>
+#include <algorithm>
 
 #pragma region RENDERING
 
@@ -57,7 +58,7 @@ Chunk* World::getChunk(int x, int z)
 {
 	auto it = chunks.find({ x, z });
 	if (it == chunks.end()) return nullptr;
-	return &it->second;
+	return it->second;
 
 }
 
@@ -67,12 +68,13 @@ void World::generateChunkData(int chunkX, int chunkZ)
 	// Check if the chunk already exists, and return if it does
 	if (chunks.find({ chunkX, chunkZ }) != chunks.end()) return;
 
+	Chunk* chunk = new Chunk();
+	if (chunk == nullptr) return;
 	// Add a new chunk to the world and mark it as dirty
-	chunks.emplace(std::make_tuple(chunkX, chunkZ), Chunk());
+	chunks.emplace(std::make_tuple(chunkX, chunkZ), chunk);
 	sortedChunkIndicies.push_back({ chunkX, chunkZ });
 
-	// Reference the newly created chunk
-	Chunk& chunk = chunks.find({ chunkX, chunkZ })->second;
+
 
 	// Iterate through each block in the chunk
 	for (int x = 0; x < CHUNK_SIZE; ++x)
@@ -97,29 +99,29 @@ void World::generateChunkData(int chunkX, int chunkZ)
 				{
 					unsigned int stoneHeight = rand() % 10;
 					if (y > 84 + stoneHeight)
-						chunk.setBlockAt(DIRT_BLOCK, x, y, z);
+						chunk->setBlockAt(DIRT_BLOCK, x, y, z);
 					else
-						chunk.setBlockAt(STONE_BLOCK, x, y, z);
+						chunk->setBlockAt(STONE_BLOCK, x, y, z);
 
 					unsigned sandHeight = rand() % 3;
 					if (y >= 63 && y < 64 + 6 + sandHeight)
-						chunk.setBlockAt(SAND_BLOCK, x, y, z);
+						chunk->setBlockAt(SAND_BLOCK, x, y, z);
 				}
 				else if (y < 64) // Underwater (below sea level)
 				{
-					chunk.setBlockAt(WATER_BLOCK, x, y, z);
+					chunk->setBlockAt(WATER_BLOCK, x, y, z);
 				}
 				else // Above terrain surface
 				{
-					chunk.setBlockAt(AIR_BLOCK, x, y, z);
+					chunk->setBlockAt(AIR_BLOCK, x, y, z);
 
 					// If the block below is dirt, set the appropriate surface block
-					if (chunk.getBlockAt(x, y - 1, z) == DIRT_BLOCK)
+					if (chunk->getBlockAt(x, y - 1, z) == DIRT_BLOCK)
 					{
 						if (y - 1 > 160)
-							chunk.setBlockAt(SNOW_BLOCK, x, y - 1, z);
+							chunk->setBlockAt(SNOW_BLOCK, x, y - 1, z);
 						else
-							chunk.setBlockAt(GRASS_BLOCK, x, y - 1, z);
+							chunk->setBlockAt(GRASS_BLOCK, x, y - 1, z);
 					}
 				}
 			}
@@ -127,7 +129,7 @@ void World::generateChunkData(int chunkX, int chunkZ)
 	}
 
 	// Mark the chunk as dirty for future updates
-	chunk.dirty = true;
+	chunk->dirty = true;
 }
 
 #pragma endregion
@@ -139,16 +141,23 @@ void World::applyUpdates()
 	// Generate the chunk data for loaded chunks
 	// Cap the max amounts of chunks that can be generated per frame
 	unsigned i = 0;
-	while ((!chunkQueue.empty()) && i < (RENDER_DISTANCE - 4) / 2)
+	while ((!chunkQueue.empty()) && i < 50)
 	{
 		std::tuple<int, int> chunkIndex = chunkQueue.front();
 		int x = std::get<0>(chunkIndex);
 		int z = std::get<1>(chunkIndex);
 
+		auto it = std::find(chunksToDelete.begin(), chunksToDelete.end(), chunkIndex);
+
+		if (it != chunksToDelete.end()) {
+			chunkQueue.pop_front();
+			continue;
+		}
+
 		Log_debug << "Generated: " << x << ", " << z << "\n";
 		generateChunkData(x, z);
 		i++;
-		chunkQueue.pop();
+		chunkQueue.pop_front();
 	}
 
 	// Check if any of the generated chunks need to update their mesh
@@ -157,7 +166,7 @@ void World::applyUpdates()
 		int x = std::get<0>(chunk.first);
 		int z = std::get<1>(chunk.first);
 
-		Chunk& chunkObj = chunk.second;
+		Chunk* chunkObj = chunk.second;
 
 
 		// Flag will be zero if the newChunk and neighbor are equal, otherwise it will be non zero
@@ -173,24 +182,47 @@ void World::applyUpdates()
 
 
 		// If any chunk neighbouring the current chunk is changed then regenerate the current chunk's mesh
-		updateFlag(chunkObj.left, changeFlags, 0, getChunk(x - 1, z));
-		updateFlag(chunkObj.right, changeFlags, 1, getChunk(x + 1, z));
-		updateFlag(chunkObj.front, changeFlags, 2, getChunk(x, z + 1));
-		updateFlag(chunkObj.back, changeFlags, 3, getChunk(x, z - 1));
+		updateFlag(chunkObj->left, changeFlags, 0, getChunk(x - 1, z));
+		updateFlag(chunkObj->right, changeFlags, 1, getChunk(x + 1, z));
+		updateFlag(chunkObj->front, changeFlags, 2, getChunk(x, z + 1));
+		updateFlag(chunkObj->back, changeFlags, 3, getChunk(x, z - 1));
 
 		if (changeFlags != 0) {
-			chunkObj.dirty = true;
+			chunkObj->dirty = true;
 		}
 
-		if (chunkObj.dirty) chunkObj.generateMesh();
+		if (chunkObj->dirty) chunkObj->generateMesh();
 	}
 
 	// Delete chunks scheduled for deletion
 	for (const auto& key : chunksToDelete)
 	{
-		Log_debug << "Erased " << std::get<0>(key) << ", " << std::get<1>(key) << "\n";
+		int x = std::get<0>(key);
+		int z = std::get<1>(key);
+
+		Chunk* chunkToBeDeleted = chunks[key];
+		if (chunkToBeDeleted == nullptr) { 
+			chunks.erase(key);
+			sortedChunkIndicies.erase(std::remove(sortedChunkIndicies.begin(), sortedChunkIndicies.end(), key), sortedChunkIndicies.end());
+			Log_debug << "Erased " << x << ", " << z << "\n";
+			continue; 
+		}
+
+		Chunk* left = chunkToBeDeleted->left;
+		Chunk* right = chunkToBeDeleted->right;
+		Chunk* front = chunkToBeDeleted->front;
+		Chunk* back = chunkToBeDeleted->back;
+
+		// Remove all references of this chunk from its neigbours
+		if (left != nullptr) left->right = nullptr;
+		if (right != nullptr) right->left = nullptr;
+		if (front != nullptr) front->back = nullptr;
+		if (back != nullptr) back->front = nullptr;
+
+		delete chunkToBeDeleted;
 		chunks.erase(key);
 		sortedChunkIndicies.erase(std::remove(sortedChunkIndicies.begin(), sortedChunkIndicies.end(), key), sortedChunkIndicies.end());
+		Log_debug << "Erased " << x << ", " << z << "\n";
 	}
 	chunksToDelete.clear();
 }
@@ -222,7 +254,7 @@ void World::updateState(glm::vec3 currentPos)
 			for (int x = -layer; x < layer; x++)
 			{
 				if (chunks.find({ x + startX, z + startZ }) != chunks.end()) continue;
-				chunkQueue.push({ x + startX, z + startZ });
+				chunkQueue.push_back({ x + startX, z + startZ });
 			}
 		}
 	}
@@ -245,6 +277,47 @@ void World::updateState(glm::vec3 currentPos)
 			chunksToDelete.push_back(std::make_tuple(x, z));
 
 		}
+	}
+
+	for (const auto& chunkIndex : chunkQueue)
+	{
+		int x = std::get<0>(chunkIndex);
+		int z = std::get<1>(chunkIndex);
+
+		if (x <= (-RENDER_DISTANCE + startX) || x >= (RENDER_DISTANCE + startX))
+		{
+			Log_debug << "Pushed to erase: " << x << ", " << z << "\n";
+			chunksToDelete.push_back(std::make_tuple(x, z));
+		}
+		else if (z <= (-RENDER_DISTANCE + startZ) || z >= (RENDER_DISTANCE + startZ))
+		{
+			Log_debug << "Pushed to erase: " << x << ", " << z << "\n";
+			chunksToDelete.push_back(std::make_tuple(x, z));
+		}
+	}
+}
+
+void World::deleteAll()
+{
+	chunksToDelete.clear();
+
+	for (const auto& chunk : chunks)
+	{
+		int x = std::get<0>(chunk.first);
+		int z = std::get<1>(chunk.first);
+		chunksToDelete.push_back(std::make_tuple(x, z));
+	}
+
+	for (const auto& key : chunksToDelete)
+	{
+		int x = std::get<0>(key);
+		int z = std::get<1>(key);
+
+		Chunk* chunkToBeDeleted = chunks[key];
+
+		delete chunkToBeDeleted;
+		chunks.erase(key);
+		sortedChunkIndicies.erase(std::remove(sortedChunkIndicies.begin(), sortedChunkIndicies.end(), key), sortedChunkIndicies.end());
 	}
 }
 
