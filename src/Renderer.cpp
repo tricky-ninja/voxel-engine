@@ -466,3 +466,48 @@ uint8_t getAO(PackedVertexData &vertexData)
 {
     return vertexData.ao;
 }
+
+Framebuffer::Framebuffer(unsigned width, unsigned height)
+{
+    glGenFramebuffers(1, &id);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, id);
+
+    glGenTextures(1, &textureColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, textureColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorBuffer, 0);
+
+    glGenRenderbuffers(1, &depthStencilBuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, depthStencilBuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthStencilBuffer);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        permAssert_msg(false, "Framebuffer is not complete!\n");
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Framebuffer::bind()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, id);
+}
+
+void Framebuffer::unbind()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Framebuffer::clear()
+{
+    glDeleteFramebuffers(1, &id);
+}

@@ -3,8 +3,29 @@
 #include "random"
 #include "gameData.h"
 #include <algorithm>
+#include <Quad.h>
 
 #include "imgui.h"
+
+#include <glm/glm.hpp>
+
+void getChunkAndBlockCoordinates(const glm::vec3& cameraPosition, int CHUNK_SIZE,
+	glm::ivec2& chunkCoord, glm::ivec3& blockCoord)
+{
+	chunkCoord.x = (int)(floor(cameraPosition.x / CHUNK_SIZE));
+	chunkCoord.y = (int)(floor(cameraPosition.z / CHUNK_SIZE));
+
+	int blockX = (int)(cameraPosition.x) % CHUNK_SIZE;
+	int blockZ = (int)(cameraPosition.z) % CHUNK_SIZE;
+	int blockY = (int)(cameraPosition.y);
+
+	// Correct for negative modulo to ensure block coordinates are within 0 - chunksize
+	if (blockX < 0) blockX += CHUNK_SIZE;
+	if (blockZ < 0) blockZ += CHUNK_SIZE;
+
+	blockCoord = glm::ivec3(blockX, blockY, blockZ);
+}
+
 
 struct MouseContext
 {
@@ -16,11 +37,16 @@ struct GameContext
 {
 	World world;
 	Camera cam;
-	Shader mainShader;
+	Shader terrainShader;
+	Shader screenShader;
+	Shader waterShader;
 	GLFWwindow* window;
 	bool renderWrieframe = false;
 	Texture mainAtlas;
 	MouseContext mouse;
+	Framebuffer gameBuffer;
+	unsigned width, height;
+	bool underWater = false;
 };
 
 GameContext *context;
@@ -63,7 +89,19 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 void init(GLFWwindow* window)
 {
 	srand(20);
+
+	initQuad();
+
+	int width=0, height=0;
+	glfwGetWindowSize(window, &width, &height);
+	
+	
 	context = new GameContext();
+
+	context->gameBuffer = Framebuffer(width, height);
+	
+	context->width = width;
+	context->height = height;
 
 	context->cam.pos = { 1.0f, 128.0f, 5.0f };
 	context->cam.up = { 0,1,0 };
@@ -78,12 +116,18 @@ void init(GLFWwindow* window)
 
 	context->mainAtlas.loadFromFile(ASSETS_PATH "textures/atlas.png");
 
-	permAssert_msg(context->mainShader.loadFromFile(ASSETS_PATH "shaders/main.vert", ASSETS_PATH "shaders/main.frag"), "Failed to load main shaders");
+	permAssert_msg(context->terrainShader.loadFromFile(ASSETS_PATH "shaders/basic_terrain.vert", ASSETS_PATH "shaders/basic_terrain.frag"), "Failed to load main shaders");
+	permAssert_msg(context->screenShader.loadFromFile(ASSETS_PATH "shaders/framebuffer.vert", ASSETS_PATH "shaders/framebuffer.frag"), "Failed to load main shaders");
+	permAssert_msg(context->waterShader.loadFromFile(ASSETS_PATH "shaders/water.vert", ASSETS_PATH "shaders/water.frag"), "Failed to load main shaders");
 	
 }
 
 void update(float deltaTime)
 {
+
+
+	context->gameBuffer.bind();
+	glEnable(GL_DEPTH_TEST);
 	glClearColor(185 / 255.f, 233 / 255.f, 250 / 255.f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLineWidth(3);
@@ -136,13 +180,39 @@ void update(float deltaTime)
 		context->cam.moveSpeed = SPEED;
 	}
 
+	glm::ivec2 chunkCoord;
+	glm::ivec3 blockCoord;
+
+	getChunkAndBlockCoordinates(context->cam.pos, CHUNK_SIZE, chunkCoord, blockCoord);
+
+	if ((context->world.getChunk(chunkCoord.x, chunkCoord.y) != nullptr) && context->world.getChunk(chunkCoord.x, chunkCoord.y)->getBlockAt(blockCoord.x, blockCoord.y, blockCoord.z) == WATER_BLOCK) context->underWater = true;
+	else context->underWater = false;
+
 	context->world.updateState(context->cam.pos);
 	context->world.applyUpdates();
 
-	context->mainShader.bind();
+	context->terrainShader.bind();
 	context->mainAtlas.bind(1);
-	context->mainShader.setInt("texture_atlas", context->mainAtlas.slot);
-	context->world.render(context->mainShader, context->cam);
+	context->terrainShader.setInt("texture_atlas", context->mainAtlas.slot);
+	context->waterShader.bind();
+	context->waterShader.setInt("texture_atlas", context->mainAtlas.slot);
+	context->world.render(context->terrainShader, context->waterShader, context->cam);
+	context->terrainShader.unbind();
+
+	context->gameBuffer.unbind();
+
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	context->screenShader.bind();
+	context->screenShader.setInt("screenTexture", 0);
+	context->screenShader.setBool("inWater", context->underWater);
+	context->screenShader.setFloat("time", glfwGetTime());
+	glBindVertexArray(quadVAO);
+	glDisable(GL_DEPTH_TEST);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, context->gameBuffer.textureColorBuffer);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
 
 	ImGui::Begin("Info");
 	ImGui::Text("Click the window to look around, press esc to unfocus");
@@ -151,12 +221,15 @@ void update(float deltaTime)
 	ImGui::Text("Shift/Space - Go down/up");
 	ImGui::Text("F3 - Toggle wireframe");
 	ImGui::Text("Q - Quit");
+	ImGui::Text("Camera: %s", context->cam.getCoordsAsString().c_str());
+	ImGui::Text("Chunk: %d, %d", chunkCoord.x, chunkCoord.y);
+	ImGui::Text("Block: %d, %d, %d", blockCoord.x, blockCoord.y, blockCoord.z);
 	ImGui::End();
 
 	ImGui::Begin("Settings");
 	ImGui::Checkbox("Wireframe", &context->renderWrieframe);
 	ImGui::Text("Render Distance");
-	ImGui::SliderInt("##RenderDistance", &context->world.RENDER_DISTANCE, 2, 32);
+	ImGui::SliderInt("##RenderDistance", &context->world.RENDER_DISTANCE, 2, 20);
 	ImGui::Text("Chunks Rendered Per Frame");
 	ImGui::SliderInt("##ChunksPerFrame", &context->world.maxChunksPerFrame, 1, 50);
 	ImGui::End();

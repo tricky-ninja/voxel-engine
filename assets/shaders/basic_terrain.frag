@@ -41,12 +41,11 @@ void main()
 	float depth = logisticDepth(gl_FragCoord.z, 0.05, renderDistance * 10);
 
 	vec3 ambient = 0.2 * color;
-	vec3 diffuse = max(dot(Normal, up),0) * color * 0.8;    // TODO: use face values for lighting
+	vec3 diffuse = max(dot(Normal, up),0) * color * 0.8; 
 
     vec4 colorGradient = (1.0f - depth) * vec4((diffuse + ambient) * AO, 1);
     vec4 fogGradient = (depth * vec4(fogColor,1));
 
 	FragColor = vec4((colorGradient).rgb, full_color.a) + fogGradient;
-//    FragColor = vec4((diffuse + ambient) * AO, 1);
 
 }

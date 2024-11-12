@@ -86,6 +86,20 @@ struct Texture
 	void clear();
 };
 
+struct Framebuffer
+{
+	unsigned int id = 0;
+	unsigned int textureColorBuffer = 0;
+	unsigned int depthStencilBuffer = 0;
+
+	Framebuffer() {};
+	Framebuffer(unsigned width, unsigned height);
+	
+	void bind();
+	void unbind();
+	void clear();
+};
+
 const float YAW = -90.f;
 const float PITCH = 0.0f;
 const float SPEED = 16;

@@ -8,13 +8,17 @@
 
 #pragma region RENDERING
 
-void World::render(const Shader& shader, const Camera& camera)
+void World::render(const Shader& terrainShader, const Shader& waterShader, const Camera& camera)
 {
 	std::tuple<int, int> cameraPos = { camera.pos.x, camera.pos.z };
 
-	shader.bind();
-	shader.setFloat("renderDistance", RENDER_DISTANCE);
-	shader.setMat4("view", glm::value_ptr(camera.getView()));
+	terrainShader.bind();
+	terrainShader.setFloat("renderDistance", RENDER_DISTANCE);
+	terrainShader.setMat4("view", glm::value_ptr(camera.getView()));
+
+	waterShader.bind();
+	waterShader.setFloat("renderDistance", RENDER_DISTANCE);
+	waterShader.setMat4("view", glm::value_ptr(camera.getView()));
 
 	// Render solid stuff from closest to farthest from the player
 	for (auto& key : sortedChunkIndicies)
@@ -29,7 +33,7 @@ void World::render(const Shader& shader, const Camera& camera)
 		glm::mat4 model = glm::mat4(1.f);
 		model = glm::translate(model, pos);
 
-		drawMesh(chunk->mesh, shader, camera, model);
+		drawMesh(chunk->mesh, terrainShader, camera, model);
 	}
 
 	// Render water(transparent stuff) from farthest to closest to the player
@@ -45,8 +49,13 @@ void World::render(const Shader& shader, const Camera& camera)
 
 		glm::mat4 model = glm::mat4(1.f);
 		model = glm::translate(model, pos);
-		model = glm::translate(model, glm::vec3(0, sin(glfwGetTime()) * 0.05 - 0.07, 0));
-		if (chunk->waterMesh.vertices.size() > 0) drawMesh(chunk->waterMesh, shader, camera, model);
+		waterShader.bind();
+		waterShader.setFloat("time", (float)glfwGetTime());
+		glDisable(GL_CULL_FACE);
+		if (chunk->waterMesh.vertices.size() > 0) drawMesh(chunk->waterMesh, waterShader, camera, model);
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_FRONT);
+		glFrontFace(GL_CW);
 	}
 }
 

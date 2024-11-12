@@ -50,7 +50,7 @@ struct World
 	std::vector<std::tuple<int, int>> chunksToDelete;
 
 	int RENDER_DISTANCE = 16;
-	int maxChunksPerFrame = 16;
+	int maxChunksPerFrame = 8;
 
 	int lastX = 0;
 	int lastZ = 0;
@@ -58,7 +58,7 @@ struct World
 	bool firstLoad = true;
 
 	Chunk* getChunk(int x, int z);
-	void render(const Shader &shader, const Camera &camera);
+	void render(const Shader &terrainShader, const Shader &waterShader, const Camera &camera);
 	void generateChunkData(int chunkX, int chunkZ);
 	void applyUpdates();
 	void updateState(glm::vec3 currentPos);
