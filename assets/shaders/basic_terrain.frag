@@ -9,6 +9,8 @@ uniform float renderDistance;
 
 uniform sampler2D texture_atlas;
 
+uniform bool enableFog;
+
 in vec2 UV;
 
 vec3 fogColor = vec3(185 / 255.f, 233 / 255.f, 250 / 255.f);
@@ -43,9 +45,18 @@ void main()
 	vec3 ambient = 0.2 * color;
 	vec3 diffuse = max(dot(Normal, up),0) * color * 0.8; 
 
-    vec4 colorGradient = (1.0f - depth) * vec4((diffuse + ambient) * AO, 1);
-    vec4 fogGradient = (depth * vec4(fogColor,1));
+    vec3 finalColor = ((diffuse + ambient) * AO);
+        
+	if (enableFog)
+    {
+        vec4 colorGradient = (1.0f - depth) * vec4(finalColor, 1);
+        vec4 fogGradient = (depth * vec4(fogColor,1));
+        FragColor = vec4((colorGradient).rgb, full_color.a) + fogGradient;
+    }
+    else
+    {
+        FragColor = vec4(finalColor, full_color.a);
+    }
 
-	FragColor = vec4((colorGradient).rgb, full_color.a) + fogGradient;
 
 }

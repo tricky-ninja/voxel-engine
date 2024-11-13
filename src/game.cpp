@@ -47,6 +47,7 @@ struct GameContext
 	Framebuffer gameBuffer;
 	unsigned width, height;
 	bool underWater = false;
+	bool enableFog = true;
 };
 
 GameContext *context;
@@ -194,6 +195,7 @@ void update(float deltaTime)
 	context->terrainShader.bind();
 	context->mainAtlas.bind(1);
 	context->terrainShader.setInt("texture_atlas", context->mainAtlas.slot);
+	context->terrainShader.setBool("enableFog", context->enableFog);
 	context->waterShader.bind();
 	context->waterShader.setInt("texture_atlas", context->mainAtlas.slot);
 	context->world.render(context->terrainShader, context->waterShader, context->cam);
@@ -228,6 +230,7 @@ void update(float deltaTime)
 
 	ImGui::Begin("Settings");
 	ImGui::Checkbox("Wireframe", &context->renderWrieframe);
+	ImGui::Checkbox("Fog", &context->enableFog);
 	ImGui::Text("Render Distance");
 	ImGui::SliderInt("##RenderDistance", &context->world.RENDER_DISTANCE, 2, 20);
 	ImGui::Text("Chunks Rendered Per Frame");
