@@ -49,7 +49,7 @@ void APIENTRY glDebugOutput(GLenum source,
 	case GL_DEBUG_TYPE_OTHER:               Logger::log(errorLevel) << "Type: Other\n"; break;
 	};
 
-	if (errorLevel == LOG_CRIT) permAssert_msg(false, std::string(std::string("OpenGL ERROR: ") + message).c_str());
+	if (errorLevel == LOG_CRIT) perm_assert_msg(false, std::string(std::string("OpenGL ERROR: ") + message).c_str());
 
 
 }

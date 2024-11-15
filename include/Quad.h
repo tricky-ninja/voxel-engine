@@ -14,7 +14,7 @@ float quadVertices[] = { // vertex attributes for a quad that fills the entire s
 
 unsigned int quadVAO, quadVBO;
 
-void initQuad()
+void init_quad()
 {
     glGenVertexArrays(1, &quadVAO);
     glGenBuffers(1, &quadVBO);

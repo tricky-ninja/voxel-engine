@@ -43,12 +43,12 @@ static std::string getCurrentTimestamp()
 }
 
 
-void Logger::setLogLevel(LogLevel level)
+void Logger::set_log_level(LogLevel level)
 {
 	s_currentLevel = level;
 }
 
-void Logger::setOutputFile(const std::string& filepath)
+void Logger::set_output_file(const std::string& filepath)
 {
 	s_fileStream.open(filepath);
 	if (s_fileStream.is_open())
@@ -74,16 +74,16 @@ std::ostream& Logger::log(LogLevel level)
 	return s_nullStream;
 }
 
-void permAssert(bool condition)
+void perm_assert(bool condition)
 {
 #if PRODUCTION_BUILD == 0
-	permAssert_msg(condition, "Assert was triggered!");
+	perm_assert_msg(condition, "Assert was triggered!");
 #else
-	permAssert_msg(condition, "Something went wrong!");
+	perm_assert_msg(condition, "Something went wrong!");
 #endif
 }
 
-void permAssert_msg(bool condition, const char* msg)
+void perm_assert_msg(bool condition, const char* msg)
 {
 	if (condition) return;
 	Log_critical << "Assert_Failed: " << msg;

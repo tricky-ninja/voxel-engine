@@ -4,9 +4,17 @@
 #include <fstream>
 #include <sstream>
 #include <stb_image.h>
+#include <sys/stat.h>
 #include <cmath>
 
-std::string readFile(const char* filepath)
+long long get_timestamp(std::string filepath)
+{
+    struct stat fileStat = {};
+    stat(filepath.c_str(), &fileStat);
+    return fileStat.st_mtime;
+}
+
+std::string read_file(const char* filepath)
 {
     std::ifstream file(filepath);
     if (!file.is_open()) {
@@ -24,11 +32,11 @@ std::string readFile(const char* filepath)
 
 #pragma region Shaders
 
-bool Shader::loadFromFile(const char* vertexShaderPath, const char* fragmentShaderPath)
+bool Shader::load_from_file(const char* vertexShaderPath, const char* fragmentShaderPath)
 {
 
-    std::string vertexShaderContents = readFile(vertexShaderPath);
-    std::string fragmentShaderContents = readFile(fragmentShaderPath);
+    std::string vertexShaderContents = read_file(vertexShaderPath);
+    std::string fragmentShaderContents = read_file(fragmentShaderPath);
 
     if (vertexShaderContents == "" || fragmentShaderContents == "")
     {
@@ -79,6 +87,12 @@ bool Shader::loadFromFile(const char* vertexShaderPath, const char* fragmentShad
         return false;
     }
 
+    this->vertexFilepath = vertexShaderPath;
+    this->fragmentFilepath = fragmentShaderPath;
+
+    this->vertexTimestamp = get_timestamp(this->vertexFilepath);
+    this->fragmentTimestamp = get_timestamp(this->fragmentFilepath);
+
     glDeleteShader(vertexShaderID);
     glDeleteShader(fragmentShaderID);
 
@@ -100,7 +114,7 @@ void Shader::clear()
     glDeleteProgram(id);
 }
 
-bool Shader::setBool(const std::string& name, bool value) const
+bool Shader::set_bool(const std::string& name, bool value) const
 {
     int location = glGetUniformLocation(id, name.c_str());
     if (location == -1) return false;
@@ -108,7 +122,7 @@ bool Shader::setBool(const std::string& name, bool value) const
     return true;
 }
 
-bool Shader::setInt(const std::string& name, int value) const
+bool Shader::set_int(const std::string& name, int value) const
 {
     int location = glGetUniformLocation(id, name.c_str());
     if (location == -1) return false;
@@ -116,7 +130,7 @@ bool Shader::setInt(const std::string& name, int value) const
     return true;
 }
 
-bool Shader::setUnsigned(const std::string& name, unsigned value) const
+bool Shader::set_unsigned(const std::string& name, unsigned value) const
 {
     int location = glGetUniformLocation(id, name.c_str());
     if (location == -1) return false;
@@ -124,7 +138,7 @@ bool Shader::setUnsigned(const std::string& name, unsigned value) const
     return true;
 }
 
-bool Shader::setFloat(const std::string& name, float value) const
+bool Shader::set_float(const std::string& name, float value) const
 {
     int location = glGetUniformLocation(id, name.c_str());
     if (location == -1) return false;
@@ -132,7 +146,7 @@ bool Shader::setFloat(const std::string& name, float value) const
     return true;
 }
 
-bool Shader::setVec2(const std::string& name, const float* values) const
+bool Shader::set_vec2(const std::string& name, const float* values) const
 {
     int location = glGetUniformLocation(id, name.c_str());
     if (location == -1) return false;
@@ -140,7 +154,7 @@ bool Shader::setVec2(const std::string& name, const float* values) const
     return true;
 }
 
-bool Shader::setVec3(const std::string& name, const float* values) const
+bool Shader::set_vec3(const std::string& name, const float* values) const
 {
     int location = glGetUniformLocation(id, name.c_str());
     if (location == -1) return false;
@@ -148,7 +162,7 @@ bool Shader::setVec3(const std::string& name, const float* values) const
     return true;
 }
 
-bool Shader::setVec4(const std::string& name, const float* values) const
+bool Shader::set_vec4(const std::string& name, const float* values) const
 {
     int location = glGetUniformLocation(id, name.c_str());
     if (location == -1) return false;
@@ -156,7 +170,7 @@ bool Shader::setVec4(const std::string& name, const float* values) const
     return true;
 }
 
-bool Shader::setMat2(const std::string& name, const float* value) const
+bool Shader::set_mat2(const std::string& name, const float* value) const
 {
     int location = glGetUniformLocation(id, name.c_str());
     if (location == -1) return false;
@@ -164,7 +178,7 @@ bool Shader::setMat2(const std::string& name, const float* value) const
     return true;
 }
 
-bool Shader::setMat3(const std::string& name, const float* value) const
+bool Shader::set_mat3(const std::string& name, const float* value) const
 {
     int location = glGetUniformLocation(id, name.c_str());
     if (location == -1) return false;
@@ -172,7 +186,7 @@ bool Shader::setMat3(const std::string& name, const float* value) const
     return true;
 }
 
-bool Shader::setMat4(const std::string& name, const float* value) const
+bool Shader::set_mat4(const std::string& name, const float* value) const
 {
     int location = glGetUniformLocation(id, name.c_str());
     if (location == -1) return false;
@@ -180,13 +194,34 @@ bool Shader::setMat4(const std::string& name, const float* value) const
     return true;
 }
 
+void Shader::hot_reload()
+{
+    long long currentVertexTime = get_timestamp(vertexFilepath);
+    long long currentFragmentTime = get_timestamp(fragmentFilepath);
+
+    if (currentVertexTime > vertexTimestamp || currentFragmentTime > fragmentTimestamp)
+    {
+        Shader tmp;
+        if (!tmp.load_from_file(vertexFilepath.c_str(), fragmentFilepath.c_str()))
+        {
+            perm_assert_msg(false, "Error recompiling shader. Fix the error and retry");
+            if (!tmp.load_from_file(vertexFilepath.c_str(), fragmentFilepath.c_str())) perm_assert_msg(false, "Error not fixed, program may crash");
+        }
+        unbind();
+        clear();
+        this->id = tmp.id;
+        this->fragmentTimestamp = tmp.fragmentTimestamp;
+        this->vertexTimestamp = tmp.vertexTimestamp;
+    }
+}
+
 #pragma endregion
 
 #pragma region Textures
 
-bool Texture::loadFromFile(const char* filepath, unsigned int wrap, unsigned int filtering)
+bool Texture::load_from_file(const char* filepath, unsigned int wrap, unsigned int filtering)
 {
-    permAssert((wrap == GL_REPEAT || wrap == GL_MIRRORED_REPEAT || wrap == GL_CLAMP_TO_EDGE) && (filtering == GL_NEAREST || filtering == GL_LINEAR));
+    perm_assert((wrap == GL_REPEAT || wrap == GL_MIRRORED_REPEAT || wrap == GL_CLAMP_TO_EDGE) && (filtering == GL_NEAREST || filtering == GL_LINEAR));
 
     stbi_set_flip_vertically_on_load(true);
     glGenTextures(1, &id);
@@ -197,6 +232,9 @@ bool Texture::loadFromFile(const char* filepath, unsigned int wrap, unsigned int
         Log_warn << "ERORR: Failed to load texture " << filepath << "\n";
         return false;
     }
+
+    this->filepath = filepath;
+    this->timestamp = get_timestamp(this->filepath);
 
     glBindTexture(GL_TEXTURE_2D, id);
 
@@ -216,6 +254,17 @@ bool Texture::loadFromFile(const char* filepath, unsigned int wrap, unsigned int
     glBindTexture(GL_TEXTURE_2D, 0);
     stbi_image_free(data);
     return true;
+}
+
+void Texture::hot_reload()
+{
+    long long currentTimestamp = get_timestamp(this->filepath);
+    if (currentTimestamp > timestamp)
+    {
+        unbind();
+        clear();
+       load_from_file(this->filepath.c_str());
+    }
 }
 
 void Texture::bind(int slot)
@@ -246,7 +295,7 @@ int sign(float num)
     return num / abs(num);
 }
 
-void Camera::move(Camera_Movement moveDirection, float deltaTime)
+void Camera::move(CAMERA_MOVEMENT moveDirection, float deltaTime)
 {
     if (moveDirection == FORWARD) pos += glm::normalize(glm::vec3(direction.x, 0, direction.z)) * moveSpeed * deltaTime;
     if (moveDirection == BACKWARD) pos -= glm::normalize(glm::vec3(direction.x, 0, direction.z)) * moveSpeed * deltaTime;
@@ -254,20 +303,20 @@ void Camera::move(Camera_Movement moveDirection, float deltaTime)
     if (moveDirection == LEFT) pos -= glm::normalize(glm::cross(direction, up)) * moveSpeed * deltaTime;
     if (moveDirection == UP) pos += glm::normalize(up) * moveSpeed * deltaTime;
     if (moveDirection == DOWN) pos -= glm::normalize(up) * moveSpeed * deltaTime;
-    updateVectors();
+    update_vectors();
 }
 
-void Camera::lookAt(glm::vec3 target)
+void Camera::look_at(glm::vec3 target)
 {
     direction = glm::normalize(target);
 }
 
-glm::mat4 Camera::getView() const
+glm::mat4 Camera::get_view() const
 {
     return glm::lookAt(pos, pos + direction, up);
 }
 
-void Camera::updateVectors()
+void Camera::update_vectors()
 {
     glm::vec3 front;
     front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
@@ -276,7 +325,7 @@ void Camera::updateVectors()
     direction = glm::normalize(front);
 }
 
-std::string Camera::getCoordsAsString()
+std::string Camera::get_coords_as_string()
 {
     return "X: " + std::to_string(pos.x) + "\nY: " + std::to_string(pos.y) + "\nZ: " + std::to_string(pos.z);
 }
@@ -297,7 +346,7 @@ void Camera::turn(float xoffset, float yoffset, bool constraintPitch)
             pitch = -89.0f;
     }
 
-    updateVectors();
+    update_vectors();
 }
 
 void Camera::zoom(float yoffset)
@@ -312,11 +361,11 @@ void Camera::zoom(float yoffset)
 
 #pragma endregion
 
-void drawMesh(const Mesh& mesh, const Shader &shader, const Camera& camera, glm::mat4 model)
+void draw_mesh(const Mesh& mesh, const Shader &shader, const Camera& camera, glm::mat4 model)
 {
 
     glm::mat4 view = glm::mat4(1.0f);
-    view = camera.getView();
+    view = camera.get_view();
 
     glm::mat4 projection = glm::mat4(1.0f);
     projection = glm::perspective(glm::radians(camera.fov), 800.0f / 600.0f, 0.1f, 100000.0f);
@@ -330,11 +379,11 @@ void drawMesh(const Mesh& mesh, const Shader &shader, const Camera& camera, glm:
 
     glBindVertexArray(mesh.VAO);
     shader.bind();
-    shader.setVec3("up", glm::value_ptr(up));
-    shader.setMat3("normalMatrix", glm::value_ptr(normalMat));
-    shader.setMat4("model", glm::value_ptr(model));
-    shader.setMat4("view", glm::value_ptr(view));
-    shader.setMat4("projection", glm::value_ptr(projection));
+    shader.set_vec3("up", glm::value_ptr(up));
+    shader.set_mat3("normalMatrix", glm::value_ptr(normalMat));
+    shader.set_mat4("model", glm::value_ptr(model));
+    shader.set_mat4("view", glm::value_ptr(view));
+    shader.set_mat4("projection", glm::value_ptr(projection));
     glDrawArrays(GL_TRIANGLES, 0, mesh.vertices.size());
 }
 
@@ -375,7 +424,7 @@ void Mesh::setup()
 
 }
 
-void setPosition(PackedVertexData &vertexData, glm::vec3 position)
+void set_position(PackedVertexData &vertexData, glm::vec3 position)
 {
     unsigned int xPos = position.x;
     unsigned int yPos = position.y;
@@ -386,16 +435,16 @@ void setPosition(PackedVertexData &vertexData, glm::vec3 position)
     vertexData.z = zPos;
 }
 
-glm::vec3 getPosition(PackedVertexData &vertexData)
+glm::vec3 get_position(PackedVertexData &vertexData)
 {
     return glm::vec3(vertexData.x, vertexData.y, vertexData.z);
 }
 
-void setNormal(PackedVertexData &vertexData, glm::vec3 normal)
+void set_normal(PackedVertexData &vertexData, glm::vec3 normal)
 {
     glm::vec3 absNormal = { abs(normal.x), abs(normal.y), abs(normal.z) };
 
-    permAssert_msg((absNormal == glm::vec3(1,0,0)) || (absNormal == glm::vec3(0, 1, 0)) || (absNormal == glm::vec3(0, 0, 1)), "Invalid vertex normals");
+    perm_assert_msg((absNormal == glm::vec3(1,0,0)) || (absNormal == glm::vec3(0, 1, 0)) || (absNormal == glm::vec3(0, 0, 1)), "Invalid vertex normals");
 
     if (normal.x == -1)
     {
@@ -434,7 +483,7 @@ void setNormal(PackedVertexData &vertexData, glm::vec3 normal)
     }
 }
 
-glm::vec3 getNormal(PackedVertexData &vertexData)
+glm::vec3 get_normal(PackedVertexData &vertexData)
 {
     int normal;
     normal = vertexData.face;
@@ -457,12 +506,12 @@ glm::vec3 getNormal(PackedVertexData &vertexData)
     return glm::vec3();
 }
 
-void setAO(PackedVertexData &vertexData, uint8_t ao)
+void set_AO(PackedVertexData &vertexData, uint8_t ao)
 {
     vertexData.ao = ao;
 }
 
-uint8_t getAO(PackedVertexData &vertexData)
+uint8_t get_AO(PackedVertexData &vertexData)
 {
     return vertexData.ao;
 }
@@ -484,14 +533,14 @@ Framebuffer::Framebuffer(unsigned width, unsigned height)
 
     glGenRenderbuffers(1, &depthStencilBuffer);
     glBindRenderbuffer(GL_RENDERBUFFER, depthStencilBuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, width, height);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthStencilBuffer);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
-        permAssert_msg(false, "Framebuffer is not complete!\n");
+        perm_assert_msg(false, "Framebuffer is not complete!\n");
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
