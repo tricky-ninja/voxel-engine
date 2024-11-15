@@ -16,13 +16,13 @@ enum LogLevel
 
 struct Logger
 {
-    static void setLogLevel(LogLevel level);
-    static void setOutputFile(const std::string& filepath);
+    static void set_log_level(LogLevel level);
+    static void set_output_file(const std::string& filepath);
     static std::ostream& log(LogLevel level);
 };
 
-void permAssert(bool condition);
-void permAssert_msg(bool condition, const char* msg);
+void perm_assert(bool condition);
+void perm_assert_msg(bool condition, const char* msg);
 
 #define Log_debug Logger::log(LOG_DEBUG)
 #define Log_info Logger::log(LOG_INFO)

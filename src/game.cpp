@@ -9,14 +9,14 @@
 
 #include <glm/glm.hpp>
 
-void getChunkAndBlockCoordinates(const glm::vec3& cameraPosition, int CHUNK_SIZE,
+void get_chunk_and_block_coords(const glm::vec3& cameraPosition, int CHUNK_SIZE,
 	glm::ivec2& chunkCoord, glm::ivec3& blockCoord)
 {
 	chunkCoord.x = (int)(floor(cameraPosition.x / CHUNK_SIZE));
 	chunkCoord.y = (int)(floor(cameraPosition.z / CHUNK_SIZE));
 
-	int blockX = (int)(cameraPosition.x) % CHUNK_SIZE;
-	int blockZ = (int)(cameraPosition.z) % CHUNK_SIZE;
+	int blockX = (int)(floor(cameraPosition.x)) % CHUNK_SIZE;
+	int blockZ = (int)(floor(cameraPosition.z)) % CHUNK_SIZE;
 	int blockY = (int)(cameraPosition.y);
 
 	// Correct for negative modulo to ensure block coordinates are within 0 - chunksize
@@ -71,6 +71,9 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
+	context->width = width;
+	context->height = height;
+	context->gameBuffer = Framebuffer(width, height);
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
@@ -91,7 +94,7 @@ void init(GLFWwindow* window)
 {
 	srand(20);
 
-	initQuad();
+	init_quad();
 
 	int width=0, height=0;
 	glfwGetWindowSize(window, &width, &height);
@@ -106,20 +109,20 @@ void init(GLFWwindow* window)
 
 	context->cam.pos = { 1.0f, 128.0f, 5.0f };
 	context->cam.up = { 0,1,0 };
-	context->cam.turn(1200, -400);
-	context->cam.updateVectors();
+	context->cam.turn(1200, 0);
+	context->cam.update_vectors();
 
-	context->world.updateState(context->cam.pos);
+	context->world.update_state(context->cam.pos);
 
 	context->window = window;
 
 	context->cam.isActive = false;
 
-	context->mainAtlas.loadFromFile(ASSETS_PATH "textures/atlas.png");
+	context->mainAtlas.load_from_file(ASSETS_PATH "textures/atlas.png");
 
-	permAssert_msg(context->terrainShader.loadFromFile(ASSETS_PATH "shaders/basic_terrain.vert", ASSETS_PATH "shaders/basic_terrain.frag"), "Failed to load main shaders");
-	permAssert_msg(context->screenShader.loadFromFile(ASSETS_PATH "shaders/framebuffer.vert", ASSETS_PATH "shaders/framebuffer.frag"), "Failed to load main shaders");
-	permAssert_msg(context->waterShader.loadFromFile(ASSETS_PATH "shaders/water.vert", ASSETS_PATH "shaders/water.frag"), "Failed to load main shaders");
+	perm_assert_msg(context->terrainShader.load_from_file(ASSETS_PATH "shaders/basic_terrain.vert", ASSETS_PATH "shaders/basic_terrain.frag"), "Failed to load main shaders");
+	perm_assert_msg(context->screenShader.load_from_file(ASSETS_PATH "shaders/framebuffer.vert", ASSETS_PATH "shaders/framebuffer.frag"), "Failed to load main shaders");
+	perm_assert_msg(context->waterShader.load_from_file(ASSETS_PATH "shaders/water.vert", ASSETS_PATH "shaders/water.frag"), "Failed to load main shaders");
 	
 }
 
@@ -184,20 +187,25 @@ void update(float deltaTime)
 	glm::ivec2 chunkCoord;
 	glm::ivec3 blockCoord;
 
-	getChunkAndBlockCoordinates(context->cam.pos, CHUNK_SIZE, chunkCoord, blockCoord);
+	get_chunk_and_block_coords(context->cam.pos, CHUNK_SIZE, chunkCoord, blockCoord);
 
-	if ((context->world.getChunk(chunkCoord.x, chunkCoord.y) != nullptr) && context->world.getChunk(chunkCoord.x, chunkCoord.y)->getBlockAt(blockCoord.x, blockCoord.y, blockCoord.z) == WATER_BLOCK) context->underWater = true;
+	if ((context->world.get_chunk(chunkCoord.x, chunkCoord.y) != nullptr) && context->world.get_chunk(chunkCoord.x, chunkCoord.y)->get_block_at(blockCoord.x, blockCoord.y, blockCoord.z) == WATER_BLOCK) context->underWater = true;
 	else context->underWater = false;
 
-	context->world.updateState(context->cam.pos);
-	context->world.applyUpdates();
+	context->world.update_state(context->cam.pos);
+	context->world.apply_updates();
+
+	context->screenShader.hot_reload();
+	context->terrainShader.hot_reload();
+	context->waterShader.hot_reload();
+	context->mainAtlas.hot_reload();
 
 	context->terrainShader.bind();
 	context->mainAtlas.bind(1);
-	context->terrainShader.setInt("texture_atlas", context->mainAtlas.slot);
-	context->terrainShader.setBool("enableFog", context->enableFog);
+	context->terrainShader.set_int("texture_atlas", context->mainAtlas.slot);
+	context->terrainShader.set_bool("enableFog", context->enableFog);
 	context->waterShader.bind();
-	context->waterShader.setInt("texture_atlas", context->mainAtlas.slot);
+	context->waterShader.set_int("texture_atlas", context->mainAtlas.slot);
 	context->world.render(context->terrainShader, context->waterShader, context->cam);
 	context->terrainShader.unbind();
 
@@ -207,9 +215,11 @@ void update(float deltaTime)
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	context->screenShader.bind();
-	context->screenShader.setInt("screenTexture", 0);
-	context->screenShader.setBool("inWater", context->underWater);
-	context->screenShader.setFloat("time", glfwGetTime());
+	context->screenShader.set_int("screenTexture", 0);
+	context->screenShader.set_bool("inWater", context->underWater);
+	context->screenShader.set_unsigned("width", context->width);
+	context->screenShader.set_unsigned("height", context->height);
+	context->screenShader.set_float("time", glfwGetTime());
 	glBindVertexArray(quadVAO);
 	glDisable(GL_DEPTH_TEST);
 	glActiveTexture(GL_TEXTURE0);
@@ -223,9 +233,9 @@ void update(float deltaTime)
 	ImGui::Text("Shift/Space - Go down/up");
 	ImGui::Text("F3 - Toggle wireframe");
 	ImGui::Text("Q - Quit");
-	ImGui::Text("Camera: %s", context->cam.getCoordsAsString().c_str());
+	ImGui::Text("%s", context->cam.get_coords_as_string().c_str());
 	ImGui::Text("Chunk: %d, %d", chunkCoord.x, chunkCoord.y);
-	ImGui::Text("Block: %d, %d, %d", blockCoord.x, blockCoord.y, blockCoord.z);
+	ImGui::Text("Local Block: %d, %d, %d", blockCoord.x, blockCoord.y, blockCoord.z);
 	ImGui::End();
 
 	ImGui::Begin("Settings");
@@ -241,6 +251,6 @@ void update(float deltaTime)
 
 void close()
 {
-	context->world.deleteAll();
+	context->world.delete_all();
 	delete context;
 }

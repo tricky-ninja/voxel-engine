@@ -13,12 +13,12 @@ void World::render(const Shader& terrainShader, const Shader& waterShader, const
 	std::tuple<int, int> cameraPos = { camera.pos.x, camera.pos.z };
 
 	terrainShader.bind();
-	terrainShader.setFloat("renderDistance", RENDER_DISTANCE);
-	terrainShader.setMat4("view", glm::value_ptr(camera.getView()));
+	terrainShader.set_float("renderDistance", RENDER_DISTANCE);
+	terrainShader.set_mat4("view", glm::value_ptr(camera.get_view()));
 
 	waterShader.bind();
-	waterShader.setFloat("renderDistance", RENDER_DISTANCE);
-	waterShader.setMat4("view", glm::value_ptr(camera.getView()));
+	waterShader.set_float("renderDistance", RENDER_DISTANCE);
+	waterShader.set_mat4("view", glm::value_ptr(camera.get_view()));
 
 	// Render solid stuff from closest to farthest from the player
 	for (auto& key : sortedChunkIndicies)
@@ -26,14 +26,19 @@ void World::render(const Shader& terrainShader, const Shader& waterShader, const
 		int x = std::get<0>(key);
 		int z = std::get<1>(key);
 
-		Chunk* chunk = getChunk(x, z);
+		Chunk* chunk = get_chunk(x, z);
 		if (chunk == nullptr) continue;
 		glm::vec3 pos = { x * CHUNK_SIZE, 0, z * CHUNK_SIZE };
 
 		glm::mat4 model = glm::mat4(1.f);
 		model = glm::translate(model, pos);
 
-		drawMesh(chunk->mesh, terrainShader, camera, model);
+		draw_mesh(chunk->mesh, terrainShader, camera, model);
+		glDisable(GL_CULL_FACE);
+		if (chunk->transparentMesh.vertices.size() > 0) draw_mesh(chunk->transparentMesh, terrainShader, camera, model);
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_FRONT);
+		glFrontFace(GL_CW);
 	}
 
 	// Render water(transparent stuff) from farthest to closest to the player
@@ -43,16 +48,16 @@ void World::render(const Shader& terrainShader, const Shader& waterShader, const
 		int x = std::get<0>(key);
 		int z = std::get<1>(key);
 
-		Chunk* chunk = getChunk(x, z);
+		Chunk* chunk = get_chunk(x, z);
 		if (chunk == nullptr) continue;
 		glm::vec3 pos = { x * CHUNK_SIZE, 0, z * CHUNK_SIZE };
 
 		glm::mat4 model = glm::mat4(1.f);
 		model = glm::translate(model, pos);
 		waterShader.bind();
-		waterShader.setFloat("time", (float)glfwGetTime());
+		waterShader.set_float("time", (float)glfwGetTime());
 		glDisable(GL_CULL_FACE);
-		if (chunk->waterMesh.vertices.size() > 0) drawMesh(chunk->waterMesh, waterShader, camera, model);
+		if (chunk->waterMesh.vertices.size() > 0) draw_mesh(chunk->waterMesh, waterShader, camera, model);
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_FRONT);
 		glFrontFace(GL_CW);
@@ -63,7 +68,7 @@ void World::render(const Shader& terrainShader, const Shader& waterShader, const
 
 #pragma region CHUNK_MANAGEMENT
 
-Chunk* World::getChunk(int x, int z)
+Chunk* World::get_chunk(int x, int z)
 {
 	auto it = chunks.find({ x, z });
 	if (it == chunks.end()) return nullptr;
@@ -72,7 +77,7 @@ Chunk* World::getChunk(int x, int z)
 }
 
 // TODO: Implement cubic chunks
-void World::generateChunkData(int chunkX, int chunkZ)
+void World::generate_chunk_data(int chunkX, int chunkZ)
 {
 	// Check if the chunk already exists, and return if it does
 	if (chunks.find({ chunkX, chunkZ }) != chunks.end()) return;
@@ -108,29 +113,36 @@ void World::generateChunkData(int chunkX, int chunkZ)
 				{
 					unsigned int stoneHeight = rand() % 10;
 					if (y > 84 + stoneHeight)
-						chunk->setBlockAt(DIRT_BLOCK, x, y, z);
+						chunk->set_block(DIRT_BLOCK, x, y, z);
 					else
-						chunk->setBlockAt(STONE_BLOCK, x, y, z);
+						chunk->set_block(STONE_BLOCK, x, y, z);
 
 					unsigned sandHeight = rand() % 3;
 					if (y >= 63 && y < 64 + 6 + sandHeight)
-						chunk->setBlockAt(SAND_BLOCK, x, y, z);
+						chunk->set_block(SAND_BLOCK, x, y, z);
 				}
 				else if (y < 64) // Underwater (below sea level)
 				{
-					chunk->setBlockAt(WATER_BLOCK, x, y, z);
+					chunk->set_block(WATER_BLOCK, x, y, z);
 				}
 				else // Above terrain surface
 				{
-					chunk->setBlockAt(AIR_BLOCK, x, y, z);
+					chunk->set_block(AIR_BLOCK, x, y, z);
 
 					// If the block below is dirt, set the appropriate surface block
-					if (chunk->getBlockAt(x, y - 1, z) == DIRT_BLOCK)
+					if (chunk->get_block_at(x, y - 1, z) == DIRT_BLOCK)
 					{
 						if (y - 1 > 160)
-							chunk->setBlockAt(SNOW_BLOCK, x, y - 1, z);
+							chunk->set_block(SNOW_BLOCK, x, y - 1, z);
 						else
-							chunk->setBlockAt(GRASS_BLOCK, x, y - 1, z);
+						{
+							chunk->set_block(GRASS_BLOCK, x, y - 1, z);
+							if ((rand() % 100) < 1)
+							{
+								if (rand() % 2) chunk->set_block(RED_FLOWER, x, y, z);
+								else chunk->set_block(YELLOW_FLOWER, x, y, z);
+							}
+						}
 					}
 				}
 			}
@@ -145,7 +157,7 @@ void World::generateChunkData(int chunkX, int chunkZ)
 
 #pragma region TERRAIN_LOADING_STUFF
 
-void World::applyUpdates()
+void World::apply_updates()
 {
 	// Generate the chunk data for loaded chunks
 	// Cap the max amounts of chunks that can be generated per frame
@@ -164,7 +176,7 @@ void World::applyUpdates()
 		}
 
 		Log_debug << "Generated: " << x << ", " << z << "\n";
-		generateChunkData(x, z);
+		generate_chunk_data(x, z);
 		i++;
 		chunkQueue.pop_front();
 	}
@@ -191,16 +203,16 @@ void World::applyUpdates()
 
 
 		// If any chunk neighbouring the current chunk is changed then regenerate the current chunk's mesh
-		updateFlag(chunkObj->left, changeFlags, 0, getChunk(x - 1, z));
-		updateFlag(chunkObj->right, changeFlags, 1, getChunk(x + 1, z));
-		updateFlag(chunkObj->front, changeFlags, 2, getChunk(x, z + 1));
-		updateFlag(chunkObj->back, changeFlags, 3, getChunk(x, z - 1));
+		updateFlag(chunkObj->left, changeFlags, 0, get_chunk(x - 1, z));
+		updateFlag(chunkObj->right, changeFlags, 1, get_chunk(x + 1, z));
+		updateFlag(chunkObj->front, changeFlags, 2, get_chunk(x, z + 1));
+		updateFlag(chunkObj->back, changeFlags, 3, get_chunk(x, z - 1));
 
 		if (changeFlags != 0) {
 			chunkObj->dirty = true;
 		}
 
-		if (chunkObj->dirty) chunkObj->generateMesh();
+		if (chunkObj->dirty) chunkObj->generate_mesh();
 	}
 
 	// Delete chunks scheduled for deletion
@@ -237,7 +249,7 @@ void World::applyUpdates()
 }
 
 // TODO: Implement cubic chunks
-void World::updateState(glm::vec3 currentPos)
+void World::update_state(glm::vec3 currentPos)
 {
 	int startX = currentPos.x / CHUNK_SIZE;
 	int startZ = currentPos.z / CHUNK_SIZE;
@@ -306,7 +318,7 @@ void World::updateState(glm::vec3 currentPos)
 	}
 }
 
-void World::deleteAll()
+void World::delete_all()
 {
 	chunksToDelete.clear();
 

@@ -21,7 +21,7 @@
 const unsigned WIDTH =  1000;
 const unsigned HEIGHT = 860;
 
-void logRendererInfo() {
+void log_renderer_info() {
 	// Get and print the GPU and OpenGL version info
 	const GLubyte* renderer = glGetString(GL_RENDERER);  // Get the renderer (GPU) name
 	const GLubyte* vendor = glGetString(GL_VENDOR);      // Get the vendor name
@@ -49,11 +49,11 @@ int main()
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 
-	Logger::setLogLevel(LOG_DEBUG);
+	Logger::set_log_level(LOG_DEBUG);
 #if PRODUCTION_BUILD == 1
-	Logger::setLogLevel(LOG_INFO);
+	Logger::set_log_level(LOG_INFO);
 #endif
-	Logger::setOutputFile(LOGS_PATH "log.txt"); // will output to stdout if the logs folder is not created in development mode
+	Logger::set_output_file(LOGS_PATH "log.txt"); // will output to stdout if the logs folder is not created in development mode
 
 #pragma region init
 
@@ -68,11 +68,11 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 
-	GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Voxel engine", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Voxel Engine", NULL, NULL);
 	if (!window)
 	{
 		glfwTerminate();
-		permAssert_msg(false, "Failed to create window");
+		perm_assert_msg(false, "Failed to create window");
 	}
 
 	glfwMakeContextCurrent(window);
@@ -85,7 +85,7 @@ int main()
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetScrollCallback(window, scroll_callback);
 
-	permAssert_msg(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress), "Failed to initialize glad");
+	perm_assert_msg(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress), "Failed to initialize glad");
 	
 #pragma region imgui
 	ImGui::CreateContext();

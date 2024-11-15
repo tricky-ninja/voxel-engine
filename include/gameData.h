@@ -17,7 +17,24 @@ enum BlockType
 	SAND_BLOCK,
 	STONE_BLOCK,
 	SNOW_BLOCK,
+	RED_FLOWER,
+	YELLOW_FLOWER,
 	BLOCK_TYPE_COUNT,
+};
+
+enum BlockCategory
+{
+	SOLID,
+	TRANSPARENT,
+	WATER,
+	BLOCK_CATEGORY_COUNT,
+};
+
+enum MeshType
+{
+	CUBE_MESH,
+	CROSS_MESH,
+	MESH_TYPE_COUNT,
 };
 
 typedef BlockType BlockData;
@@ -35,11 +52,12 @@ struct Chunk
 
 	Mesh mesh;
 	Mesh waterMesh;
+	Mesh transparentMesh;
 
-	BlockData getBlockAt(int x, unsigned y, int z);
-	void setBlockAt(BlockData value, unsigned x, unsigned y, unsigned z);
+	BlockData get_block_at(int x, unsigned y, int z);
+	void set_block(BlockData value, unsigned x, unsigned y, unsigned z);
 
-	void generateMesh();
+	void generate_mesh();
 };
 
 struct World
@@ -57,12 +75,12 @@ struct World
 
 	bool firstLoad = true;
 
-	Chunk* getChunk(int x, int z);
+	Chunk* get_chunk(int x, int z);
 	void render(const Shader &terrainShader, const Shader &waterShader, const Camera &camera);
-	void generateChunkData(int chunkX, int chunkZ);
-	void applyUpdates();
-	void updateState(glm::vec3 currentPos);
-	void deleteAll();
+	void generate_chunk_data(int chunkX, int chunkZ);
+	void apply_updates();
+	void update_state(glm::vec3 currentPos);
+	void delete_all();
 };
 
-glm::vec3 getBlockTextureID(BlockType block);
+glm::vec3 get_block_textureID(BlockType block);
